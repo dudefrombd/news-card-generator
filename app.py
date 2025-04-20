@@ -29,26 +29,32 @@ def extract_news_data(url):
     return date, headline, image_url, source
 
 # Function to create the news card
-def create_news_card(date, headline, image_url, source):
-    # Create a blank image (card background) with a white background
-    background = Image.new('RGB', (800, 800), color='white')
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
 
-    # Add a title (headline) at the top of the card
+def create_news_card(date, headline, image_url, source):
+    # Create a blank image (card background) with a light gray background
+    background = Image.new('RGB', (800, 800), color='#F2F2F2')  # Light gray background
+
+    # Draw on the background
+    draw = ImageDraw.Draw(background)
+
+    # Add headline (title)
     try:
         title_font = ImageFont.truetype('arial.ttf', 40)  # Font size for the headline
     except IOError:
         title_font = ImageFont.load_default()  # Fallback if the font is not available
 
-    draw = ImageDraw.Draw(background)
-    draw.text((50, 50), headline, fill='black', font=title_font)
+    draw.text((50, 50), headline, fill='#2C3E50', font=title_font)  # Dark gray color for headline
 
     # Add the publication date under the headline
     try:
-        date_font = ImageFont.truetype('arial.ttf', 30)  # Font size for the date
+        date_font = ImageFont.truetype('TiroBangla.ttf', 30)  # Font size for the date
     except IOError:
         date_font = ImageFont.load_default()  # Fallback if the font is not available
 
-    draw.text((50, 120), f"Published: {date}", fill='gray', font=date_font)
+    draw.text((50, 120), f"Published: {date}", fill='#7F8C8D', font=date_font)  # Light gray color for date
 
     # Download the image from the URL
     img_response = requests.get(image_url)
@@ -66,12 +72,15 @@ def create_news_card(date, headline, image_url, source):
 
     # Add the news source name below the image
     source_font = ImageFont.load_default()  # Default font for source name
-    draw.text((50, 600), f"Source: {source}", fill='blue', font=source_font)
+    draw.text((50, 600), f"Source: {source}", fill='#2980B9', font=source_font)  # Blue color for source
 
     # Draw a call-to-action button (optional)
-    draw.rectangle([550, 720, 750, 760], fill="blue")  # Rectangle for the button
+    draw.rectangle([550, 720, 750, 760], fill="#2980B9")  # Blue button background
     button_font = ImageFont.load_default()  # Font for button text
-    draw.text((570, 725), "Read more", fill='white', font=button_font)
+    draw.text((570, 725), "Read more", fill='white', font=button_font)  # White text on button
+
+    # Add a border around the card (optional)
+    draw.rectangle([10, 10, 790, 790], outline='#BDC3C7', width=5)  # Light border around the card
 
     # Save or display the generated image
     background.save('news_card.png')
