@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from PIL import Image, ImageDraw, ImageFont
-import streamlit as st
+import requests
 from io import BytesIO
 
 # Function to extract news details from the URL
@@ -31,36 +31,50 @@ def extract_news_data(url):
 
 
 def create_news_card(date, headline, image_url, source):
-    # Load the background image
+    # Create a blank image (card background) with a white background
     background = Image.new('RGB', (800, 800), color='white')
 
-    # Add headline
+    # Add a title (headline) at the top of the card
+    try:
+        title_font = ImageFont.truetype('arial.ttf', 40)  # Font size for the headline
+    except IOError:
+        title_font = ImageFont.load_default()  # Fallback if the font is not available
+
     draw = ImageDraw.Draw(background)
-    font = ImageFont.load_default()
-    draw.text((50, 50), headline, fill='black', font=font)
+    draw.text((50, 50), headline, fill='black', font=title_font)
 
-    # Add date
-    draw.text((50, 150), date, fill='gray', font=font)
+    # Add the publication date under the headline
+    try:
+        date_font = ImageFont.truetype('arial.ttf', 30)  # Font size for the date
+    except IOError:
+        date_font = ImageFont.load_default()  # Fallback if the font is not available
 
-    # Add source name
-    draw.text((50, 200), source, fill='blue', font=font)
+    draw.text((50, 120), f"Published: {date}", fill='gray', font=date_font)
 
     # Download the image from the URL
     img_response = requests.get(image_url)
     img = Image.open(BytesIO(img_response.content))
-    img = img.resize((400, 400))  # Resize image to fit the card
-    background.paste(img, (200, 250))
+    img = img.resize((600, 400))  # Resize image to fit into the card
+    background.paste(img, (100, 180))
 
-    # Add logo (this should be the news website's logo, here it's just a placeholder)
+    # Add source logo (if available)
     try:
-        logo = Image.open('logo.png')  # Replace with your actual logo path
-    except FileNotFoundError:
-        logo = None  # Handle missing logo (you can optionally add a default image or skip it)
-    if logo:
+        logo = Image.open('logo.png')  # Provide the path to the logo
         logo = logo.resize((100, 100))
         background.paste(logo, (650, 650))
+    except FileNotFoundError:
+        pass  # If the logo is not found, just skip it
 
-    # Save or display the generated image
+    # Add the news source name below the image
+    source_font = ImageFont.load_default()  # Default font for source name
+    draw.text((50, 600), f"Source: {source}", fill='blue', font=source_font)
+
+    # Draw a call-to-action button (optional)
+    draw.rectangle([550, 720, 750, 760], fill="blue")  # Rectangle for the button
+    button_font = ImageFont.load_default()  # Font for button text
+    draw.text((570, 725), "Read more", fill='white', font=button_font)
+
+    # Save the image or display it
     background.save('news_card.png')
     return background
 
