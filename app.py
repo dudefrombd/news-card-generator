@@ -88,7 +88,7 @@ def create_news_card(date, headline, image_url, source):
     background.paste(img, (200, 250))
 
     # Add logo (this should be the news website's logo, here it's just a placeholder)
-    logo = Image.open('path_to_logo.png')  # Provide the path to the logo
+    logo = Image.open('logo.png')  # Provide the path to the logo
     logo = logo.resize((100, 100))
     background.paste(logo, (650, 650))
 
