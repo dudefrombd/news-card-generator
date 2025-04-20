@@ -10,11 +10,21 @@ def extract_news_data(url):
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Extracting data (you may need to adjust this based on the site structure)
-    date = soup.find('meta', {'property': 'article:published_time'})['content']
-    headline = soup.find('meta', {'property': 'og:title'})['content']
-    image_url = soup.find('meta', {'property': 'og:image'})['content']
-    source = soup.find('meta', {'property': 'og:site_name'})['content']
+    # Extracting date with error handling for missing tag
+    date_tag = soup.find('meta', {'property': 'article:published_time'})
+    date = date_tag['content'] if date_tag else 'Date not found'
+
+    # Extracting headline with error handling for missing tag
+    headline_tag = soup.find('meta', {'property': 'og:title'})
+    headline = headline_tag['content'] if headline_tag else 'Headline not found'
+
+    # Extracting image URL with error handling for missing tag
+    image_tag = soup.find('meta', {'property': 'og:image'})
+    image_url = image_tag['content'] if image_tag else 'Image not found'
+
+    # Extracting source with error handling for missing tag
+    source_tag = soup.find('meta', {'property': 'og:site_name'})
+    source = source_tag['content'] if source_tag else 'Source not found'
 
     return date, headline, image_url, source
 
