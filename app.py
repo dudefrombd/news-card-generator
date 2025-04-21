@@ -60,18 +60,18 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
 
         # Load fonts with fallback
         try:
-            bangla_font_small = ImageFont.truetype("NotoSansBengali-Medium.ttf", 24)
-            bangla_font_large = ImageFont.truetype("NotoSansBengali-Medium.ttf", 40)
+            bangla_font_small = ImageFont.truetype("kalpurush ANSI.ttf", 24)
+            bangla_font_large = ImageFont.truetype("kalpurush ANSI.ttf", 40)
         except IOError:
             bangla_font_small = ImageFont.load_default()
             bangla_font_large = ImageFont.load_default()
-            print("Warning: NotoSansBengali-Medium.ttf not found, using default font.")
+            print("Warning: kalpurush ANSI.ttf not found, using default font.")
 
         try:
-            regular_font = ImageFont.truetype("arial.ttf", 24)
+            regular_font = ImageFont.truetype("Arial.ttf", 24)
         except IOError:
             regular_font = ImageFont.load_default()
-            print("Warning: arial.ttf not found, using default font.")
+            print("Warning: Arial.ttf not found, using default font.")
 
         # Download and add the news image (resize to fit within a frame)
         if image_url:
