@@ -115,7 +115,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw.text((200, 640), "Visit our site", fill="yellow", font=regular_font)
 
         # Add website URL (bottom right)
-        draw.text((900, 640), "rtvonline.com", fill="white", font=regular_font)
+        draw.text((900, 640), "facebook/leadne", fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
