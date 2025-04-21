@@ -121,10 +121,10 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((40, 950), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)  # Adjusted to fit new layout
+        draw.text((200, 970), "facebook.com/leadne", fill="yellow", font=regular_font)  # Adjusted to fit new layout
 
         # Add website URL (bottom right)
-        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)  # Adjusted to fit new layout
+        draw.text((850, 970), "", fill="white", font=regular_font)  # Adjusted to fit new layout
 
         # Save the photo card
         canvas.save(output_path)
