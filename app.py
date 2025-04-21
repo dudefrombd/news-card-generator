@@ -96,7 +96,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="black", font=regular_font)
 
         # Download and add the news image (resize to 840x600)
-        image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
+        image_y = date_box_y + date_box_height + 20  # Gap between date and image (20 pixels)
         if image_url:
             news_image = download_image(image_url)
             news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)
@@ -136,10 +136,10 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((40, 950), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)
+        draw.text((200, 970), "facebook.com/leadne", fill="white", font=regular_font)
 
         # Add website URL (bottom right)
-        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)
+        draw.text((850, 970), "", fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
