@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Main color
-TEAL_GREEN = "#003366"  # Complementary color for bottom section
+NAVY_BLUE = "#003366"  # Complementary color for bottom section (changed from teal_green)
 IMAGE_SIZE = (840, 600)
 IMAGE_POSITION = (120, 150)  # Adjusted for centering
 DATE_BOX_SIZE = (300, 60)
@@ -22,7 +22,7 @@ HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
 PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section
+LOGO_SOURCE_TOP_PADDING = 15  # Reduced padding above logo/source section (was 30)
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
 
 # Function to validate URL
@@ -219,13 +219,13 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         num_lines = len(wrapped_text) if wrapped_text else 1
         headline_bottom = HEADLINE_Y_START + (num_lines * HEADLINE_LINE_SPACING)
 
-        # Draw the complementary color section (teal_green) from headline bottom to canvas bottom
-        draw.rectangle((0, headline_bottom, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=TEAL_GREEN)
+        # Draw the complementary color section (navy_blue) from headline bottom to canvas bottom
+        draw.rectangle((0, headline_bottom, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
 
-        # Position the logo and source in the teal_green section with top padding
+        # Position the logo and source in the navy_blue section with reduced top padding
         logo_source_y = headline_bottom + LOGO_SOURCE_TOP_PADDING
 
-        # Add the logo (bottom left in teal_green section) with aspect ratio preserved
+        # Add the logo (bottom left in navy_blue section) with aspect ratio preserved
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
@@ -236,7 +236,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         except FileNotFoundError:
             draw.text((PADDING, logo_source_y), "Logo Missing", fill="red", font=regular_font)
 
-        # Add the source (bottom right in teal_green section), adjust x to ensure right padding
+        # Add the source (bottom right in navy_blue section), adjust x to ensure right padding
         source_text = f"Source: {main_domain}"
         text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
         text_width = text_bbox[2] - text_bbox[0]
