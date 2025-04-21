@@ -23,7 +23,7 @@ HEADLINE_LINE_SPACING = 60
 PADDING = 40  # Padding for right and bottom, left padding for logo adjusted separately
 LOGO_POSITION = (60, 910)  # Increased left padding to 60px
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
-SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padding
+SOURCE_POSITION = (800, 910)  # Aligned with logo, adjusted later for right padding
 
 # Function to validate URL
 def is_valid_url(url):
