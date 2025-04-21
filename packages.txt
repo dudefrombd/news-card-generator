@@ -1,0 +1,2 @@
+libpango1.0-0
+libpangocairo-1.0-0
