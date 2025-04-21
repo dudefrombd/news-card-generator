@@ -20,6 +20,7 @@ HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
 LOGO_POSITION = (40, 950)
+LOGO_MAX_SIZE = (150, 75)  # Maximum width and height for logo
 WEBSITE_TEXT_POSITION = (200, 970)
 WEBSITE_URL_POSITION = (850, 970)
 
@@ -112,6 +113,32 @@ def load_fonts():
     
     return bangla_font_small, bangla_font_large, regular_font
 
+# Function to resize image while preserving aspect ratio
+def resize_with_aspect_ratio(image, max_size):
+    original_width, original_height = image.size
+    max_width, max_height = max_size
+    aspect_ratio = original_width / original_height
+
+    # Calculate new dimensions while preserving aspect ratio
+    if original_width > original_height:
+        # Width is the limiting factor
+        new_width = min(original_width, max_width)
+        new_height = int(new_width / aspect_ratio)
+    else:
+        # Height is the limiting factor
+        new_height = min(original_height, max_height)
+        new_width = int(new_height * aspect_ratio)
+
+    # Ensure dimensions don't exceed max_size
+    if new_width > max_width:
+        new_width = max_width
+        new_height = int(new_width / aspect_ratio)
+    if new_height > max_height:
+        new_height = max_height
+        new_width = int(new_height * aspect_ratio)
+
+    return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", output_path="photo_card.png"):
     try:
@@ -161,11 +188,14 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Add the logo (bottom left)
+        # Add the logo (bottom left) with aspect ratio preserved
         try:
             logo = Image.open(logo_path).convert("RGBA")
-            logo = logo.resize((150, 75), Image.Resampling.LANCZOS)
-            canvas.paste(logo, LOGO_POSITION, logo)
+            logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
+            # Center the logo vertically within the 75-pixel height space
+            logo_width, logo_height = logo.size
+            logo_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - logo_height) // 2
+            canvas.paste(logo, (LOGO_POSITION[0], logo_y), logo)
         except FileNotFoundError:
             draw.text(LOGO_POSITION, "Logo Missing", fill="red", font=regular_font)
 
