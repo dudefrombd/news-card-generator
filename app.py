@@ -7,6 +7,7 @@ import datetime
 import textwrap
 import re
 import os
+from urllib.parse import urlparse
 
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
@@ -21,8 +22,7 @@ HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
 LOGO_POSITION = (40, 930)  # Moved up to accommodate larger logo
 LOGO_MAX_SIZE = (225, 113)  # Increased by 1.5x (150*1.5, 75*1.5)
-WEBSITE_TEXT_POSITION = (200, 1045)  # Adjusted to be below larger logo
-WEBSITE_URL_POSITION = (850, 1045)  # Adjusted to be below larger logo
+WEBSITE_URL_POSITION = (850, 1045)  # Position for "Source: <domain>"
 
 # Function to validate URL
 def is_valid_url(url):
@@ -32,6 +32,23 @@ def is_valid_url(url):
         r'(/[^?\s]*)?$'  # optional path
     )
     return re.match(regex, url) is not None
+
+# Function to extract main domain from URL
+def extract_main_domain(url):
+    try:
+        parsed_url = urlparse(url)
+        domain = parsed_url.netloc
+        # Remove "www." if present
+        if domain.startswith("www."):
+            domain = domain[4:]
+        # Split by dots and take the last two parts for main domain (e.g., ntvbd.com -> ntvbd)
+        parts = domain.split(".")
+        if len(parts) >= 2:
+            main_domain = parts[-2]  # Take the second-to-last part (e.g., ntvbd)
+            return main_domain
+        return domain  # Fallback to full domain if parsing fails
+    except Exception:
+        return "Unknown"
 
 # Function to extract news details from the URL
 def extract_news_data(url):
@@ -63,7 +80,10 @@ def extract_news_data(url):
         source_tag = soup.find('meta', {'property': 'og:site_name'})
         source = source_tag['content'] if source_tag else 'Source not found'
 
-        return pub_date, headline, image_url, source
+        # Extract main domain from URL
+        main_domain = extract_main_domain(url)
+
+        return pub_date, headline, image_url, source, main_domain
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
@@ -131,7 +151,7 @@ def resize_with_aspect_ratio(image, max_size):
     return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 # Function to create the news card
-def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", output_path="photo_card.png"):
+def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", output_path="photo_card.png"):
     try:
         # Create a blank canvas
         canvas = Image.new("RGB", CANVAS_SIZE, CANVAS_COLOR)
@@ -187,9 +207,9 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         except FileNotFoundError:
             draw.text(LOGO_POSITION, "Logo Missing", fill="red", font=regular_font)
 
-        # Add website text and URL
-        draw.text(WEBSITE_TEXT_POSITION, "Visit our site", fill="yellow", font=regular_font)
-        draw.text(WEBSITE_URL_POSITION, "facebook/leadne", fill="white", font=regular_font)
+        # Add the source (bottom right)
+        source_text = f"Source: {main_domain}"
+        draw.text(WEBSITE_URL_POSITION, source_text, fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
@@ -222,8 +242,8 @@ if st.button("Generate Photo Card"):
     else:
         with st.spinner("Generating photo card..."):
             try:
-                pub_date, headline, image_url, source = extract_news_data(url)
-                output_path = create_photo_card(headline, image_url, pub_date, logo_path=logo_path)
+                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+                output_path = create_photo_card(headline, image_url, pub_date, main_domain, logo_path=logo_path)
                 st.image(output_path, caption="Generated Photo Card")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
