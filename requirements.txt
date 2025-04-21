@@ -2,5 +2,4 @@ streamlit
 pillow
 requests
 beautifulsoup4
-pycairo
-numpy
+
