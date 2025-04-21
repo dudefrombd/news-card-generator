@@ -55,7 +55,7 @@ def download_image(image_url):
 def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", output_path="photo_card.png"):
     try:
         # Create a blank canvas (1080x720, blue background)
-        canvas = Image.new("RGB", (1080, 720), "#003087")  # Blue background
+        canvas = Image.new("RGB", (1080, 1080), "#003087")  # Blue background
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts with fallback
