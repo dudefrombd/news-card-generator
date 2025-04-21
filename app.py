@@ -53,10 +53,10 @@ def create_photo_card(headline, image_path, pub_date, logo_path="logo.png", outp
     else:
         date_str = datetime.datetime.now().strftime("%d %B %Y")
     draw.rectangle((300, 10, 500, 40), fill="white")
-    draw.text((350, 15), date_str, fill="black", font=ImageFont.truetype("arial.ttf", 20))
+    draw.text((350, 15), date_str, fill="black", font=ImageFont.truetype("TiroBangla.ttf", 20))
 
     # Add the headline (below the image)
-    draw.text((50, 370), headline, fill="white", font=ImageFont.truetype("arial.ttf", 30))
+    draw.text((50, 370), headline, fill="white", font=ImageFont.truetype("TiroBangla.ttf", 30))
 
     # Add the logo (bottom left)
     logo = Image.open(logo_path)
@@ -66,7 +66,7 @@ def create_photo_card(headline, image_path, pub_date, logo_path="logo.png", outp
     # Add call to action (bottom right) - QR code
     import qrcode
     qr = qrcode.QRCode(box_size=5)
-    qr.add_data("https://rtvonline.com")  # Replace with your site
+    qr.add_data("#")  # Replace with your site
     qr.make(fit=True)
     qr_img = qr.make_image(fill="black", back_color="white")
     qr_img = qr_img.resize((100, 100), Image.LANCZOS)
