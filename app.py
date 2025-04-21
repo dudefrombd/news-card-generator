@@ -12,7 +12,8 @@ from urllib.parse import urlparse
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Main color
-NAVY_BLUE = "#003366"  # Complementary color for bottom section (changed from teal_green)
+NAVY_BLUE = "#003366"  # Complementary color for bottom section
+MUSTARD_YELLOW = "#FFB300"  # Border color for image
 IMAGE_SIZE = (840, 600)
 IMAGE_POSITION = (120, 150)  # Adjusted for centering
 DATE_BOX_SIZE = (300, 60)
@@ -21,8 +22,9 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
+HEADLINE_BOTTOM_PADDING = 10  # Padding below headline before complementary color section
 PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_SOURCE_TOP_PADDING = 15  # Reduced padding above logo/source section (was 30)
+LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section (changed to 20)
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
 
 # Function to validate URL
@@ -196,9 +198,9 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
                            IMAGE_POSITION[0] + IMAGE_SIZE[0], image_y + IMAGE_SIZE[1]), fill="gray")
             draw.text((400, image_y + 300), "No Image Available", fill="white", font=regular_font)
 
-        # Add a yellow border around the image
+        # Add a mustard yellow border around the image
         draw.rectangle((IMAGE_POSITION[0], image_y, 
-                       IMAGE_POSITION[0] + IMAGE_SIZE[0], image_y + IMAGE_SIZE[1]), outline="yellow", width=5)
+                       IMAGE_POSITION[0] + IMAGE_SIZE[0], image_y + IMAGE_SIZE[1]), outline=MUSTARD_YELLOW, width=5)
 
         # Add the headline (below the image, centered)
         if "not found" in headline.lower():
@@ -215,15 +217,16 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Calculate the bottom of the headline
+        # Calculate the bottom of the headline and add padding
         num_lines = len(wrapped_text) if wrapped_text else 1
         headline_bottom = HEADLINE_Y_START + (num_lines * HEADLINE_LINE_SPACING)
+        divider_y = headline_bottom + HEADLINE_BOTTOM_PADDING
 
-        # Draw the complementary color section (navy_blue) from headline bottom to canvas bottom
-        draw.rectangle((0, headline_bottom, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
+        # Draw the complementary color section (navy_blue) from divider_y to canvas bottom
+        draw.rectangle((0, divider_y, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
 
-        # Position the logo and source in the navy_blue section with reduced top padding
-        logo_source_y = headline_bottom + LOGO_SOURCE_TOP_PADDING
+        # Position the logo and source in the navy_blue section with updated top padding
+        logo_source_y = divider_y + LOGO_SOURCE_TOP_PADDING
 
         # Add the logo (bottom left in navy_blue section) with aspect ratio preserved
         try:
