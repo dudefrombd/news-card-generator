@@ -22,7 +22,7 @@ HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
 PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_SOURCE_TOP_PADDING = 30  # Padding above logo/source section
+LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
 
 # Function to validate URL
