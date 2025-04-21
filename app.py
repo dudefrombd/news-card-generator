@@ -168,7 +168,8 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         # Add the date (top center)
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
         draw.rectangle((DATE_POSITION[0], DATE_POSITION[1], 
-        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=regular_font)
+                        DATE_POSITION[0] + DATE_BOX_SIZE[0], DATE_POSITION[1] + DATE_BOX_SIZE[1]), fill="white")
+        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="black", font=regular_font)
 
         # Download and add the news image
         image_y = DATE_POSITION[1] + DATE_BOX_SIZE[1] + DATE_GAP
