@@ -80,8 +80,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         date_box_height = 60
         date_box_x = (1080 - date_box_width) // 2
         date_box_y = 50  # Padding from top
-        draw.rectangle((date_box_x, date_box_y, date_box_x + date_box_width, date_box_y + date_box_height), fill="white")
-        draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="black", font=regular_font)
+        draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="white", font=regular_font)
 
         # Download and add the news image (resize to 840x600)
         image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
