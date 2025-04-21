@@ -20,9 +20,10 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
-LOGO_POSITION = (40, 930)  # Moved up to accommodate larger logo
-LOGO_MAX_SIZE = (225, 113)  # Increased by 1.5x (150*1.5, 75*1.5)
-WEBSITE_URL_POSITION = (850, 1045)  # Position for "Source: <domain>"
+PADDING = 40  # Consistent padding on all sides
+LOGO_POSITION = (PADDING, 910)  # Adjusted to leave 40px bottom padding
+LOGO_MAX_SIZE = (225, 113)  # Max size of logo
+SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padding
 
 # Function to validate URL
 def is_valid_url(url):
@@ -41,12 +42,16 @@ def extract_main_domain(url):
         # Remove "www." if present
         if domain.startswith("www."):
             domain = domain[4:]
-        # Split by dots and take the last two parts for main domain (e.g., ntvbd.com -> ntvbd)
+        # Split by dots
         parts = domain.split(".")
-        if len(parts) >= 2:
-            main_domain = parts[-2]  # Take the second-to-last part (e.g., ntvbd)
-            return main_domain
-        return domain  # Fallback to full domain if parsing fails
+        if len(parts) >= 3:
+            # Check if the second-to-last part is a common suffix (e.g., "co" in "co.uk")
+            common_suffixes = ["co", "org", "gov", "edu"]
+            if parts[-2] in common_suffixes:
+                # Take the last three parts (e.g., bbc.co.uk)
+                return ".".join(parts[-3:])
+        # Otherwise, take the last two parts (e.g., ntvbd.com -> ntvbd)
+        return ".".join(parts[-2:])
     except Exception:
         return "Unknown"
 
@@ -163,8 +168,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         # Add the date (top center)
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
         draw.rectangle((DATE_POSITION[0], DATE_POSITION[1], 
-                        DATE_POSITION[0] + DATE_BOX_SIZE[0], DATE_POSITION[1] + DATE_BOX_SIZE[1]), fill="white")
-        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="black", font=regular_font)
+        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=regular_font)
 
         # Download and add the news image
         image_y = DATE_POSITION[1] + DATE_BOX_SIZE[1] + DATE_GAP
@@ -207,9 +211,14 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         except FileNotFoundError:
             draw.text(LOGO_POSITION, "Logo Missing", fill="red", font=regular_font)
 
-        # Add the source (bottom right)
+        # Add the source (bottom right), adjust x to ensure right padding
         source_text = f"Source: {main_domain}"
-        draw.text(WEBSITE_URL_POSITION, source_text, fill="white", font=regular_font)
+        text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        # Right edge should be at x=1040 (1080 - 40 padding)
+        text_x = 1040 - text_width
+        source_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - (text_bbox[3] - text_bbox[1])) // 2  # Align vertically with logo
+        draw.text((text_x, source_y), source_text, fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
