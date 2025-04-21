@@ -83,11 +83,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             canvas.paste(news_image, (image_x, 50))
         else:
             # Draw a placeholder if no image is available
-            draw.rectangle((140, 50, 940, 640), fill="gray")
+            draw.rectangle((140, 50, 940, 650), fill="gray")
             draw.text((400, 400), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((140, 50, 940, 640), outline="yellow", width=5)
+        draw.rectangle((140, 50, 940, 650), outline="yellow", width=5)
 
         # Add the date (top center)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
@@ -102,7 +102,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
         # Wrap the text to fit within max_width
         wrapped_text = textwrap.wrap(headline, width=30)  # Adjust width to fit within 900 pixels
-        headline_y = 880  # Starting y position for the headline
+        headline_y = 600  # Starting y position for the headline
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
             text_width = text_bbox[2] - text_bbox[0]
