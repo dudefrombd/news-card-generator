@@ -58,6 +58,21 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         canvas = Image.new("RGB", (800, 600), "#003087")  # Blue background
         draw = ImageDraw.Draw(canvas)
 
+        # Load fonts with fallback
+        try:
+            bangla_font_small = ImageFont.truetype("TiroBangla.ttf", 20)
+            bangla_font_large = ImageFont.truetype("TiroBangla.ttf", 30)
+        except IOError:
+            bangla_font_small = ImageFont.load_default()
+            bangla_font_large = ImageFont.load_default()
+            print("Warning: TiroBangla.ttf not found, using default font.")
+
+        try:
+            regular_font = ImageFont.truetype("arial.ttf", 20)
+        except IOError:
+            regular_font = ImageFont.load_default()
+            print("Warning: arial.ttf not found, using default font.")
+
         # Download and add the news image (resize to fit within a frame)
         if image_url:
             news_image = download_image(image_url)
@@ -66,7 +81,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         else:
             # Draw a placeholder if no image is available
             draw.rectangle((50, 50, 750, 350), fill="gray")
-            draw.text((300, 150), "No Image Available", fill="white", font=ImageFont.truetype("arial.ttf", 20))
+            draw.text((300, 150), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
         draw.rectangle((50, 50, 750, 350), outline="yellow", width=5)
@@ -74,11 +89,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Add the date (top center)
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
         draw.rectangle((300, 10, 500, 40), fill="white")
-        draw.text((350, 15), date_str, fill="black", font=ImageFont.truetype("TiroBangla.ttf", 20))
+        draw.text((350, 15), date_str, fill="black", font=bangla_font_small)
 
         # Add the headline (below the image)
         headline = (headline[:50] + "...") if len(headline) > 50 else headline
-        draw.text((50, 370), headline, fill="white", font=ImageFont.truetype("TiroBangla.ttf", 30))
+        draw.text((50, 370), headline, fill="white", font=bangla_font_large)
 
         # Add the logo (bottom left)
         logo = Image.open(logo_path)
@@ -86,7 +101,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         canvas.paste(logo, (50, 500))
 
         # Add website text below the logo
-        draw.text((160, 520), "Visit our site", fill="yellow", font=ImageFont.truetype("arial.ttf", 20))
+        draw.text((160, 520), "Visit our site", fill="yellow", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
