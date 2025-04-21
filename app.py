@@ -23,7 +23,7 @@ HEADLINE_LINE_SPACING = 60
 PADDING = 40  # Padding for right and bottom, left padding for logo adjusted separately
 LOGO_POSITION = (60, 910)  # Increased left padding to 60px
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
-SOURCE_POSITION = (800, 910)  # Aligned with logo, adjusted later for right padding
+SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padding
 
 # Function to validate URL
 def is_valid_url(url):
@@ -202,7 +202,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
 
         # Add the headline (below the image, centered)
         if "not found" in headline.lower():
-            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
+            headline = "কোন শিরোনাম পাওয়া যায়নি"
         headline = headline.encode('utf-8').decode('utf-8')
         wrapped_text = textwrap.wrap(headline, width=40)
         headline_y = HEADLINE_Y_START
