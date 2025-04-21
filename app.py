@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from bs4 import BeautifulSoup
 import datetime
-import textwrap  # Added for text wrapping
+import textwrap  # For text wrapping
 
 # Function to extract news details from the URL
 def extract_news_data(url):
@@ -74,7 +74,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             regular_font = ImageFont.load_default()
             print("Warning: Arial.ttf not found, using default font.")
 
-        # Download and add the news image (resize to fit within a frame)
+        # Download and add the news image (resize to 800x600)
         if image_url:
             news_image = download_image(image_url)
             news_image = news_image.resize((800, 600), Image.Resampling.LANCZOS)
@@ -84,7 +84,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         else:
             # Draw a placeholder if no image is available
             draw.rectangle((140, 50, 940, 650), fill="gray")
-            draw.text((400, 400), "No Image Available", fill="white", font=regular_font)
+            draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
         draw.rectangle((140, 50, 940, 650), outline="yellow", width=5)
@@ -98,11 +98,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw.text((date_box_x + 30, 15), date_str, fill="black", font=regular_font)
 
         # Add the headline (below the image, centered, within a fixed area)
-        max_width = 960  # Fixed width for the headline area
+        max_width = 900  # Fixed width for the headline area
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
-        # Wrap the text to fit within max_width
-        wrapped_text = textwrap.wrap(headline, width=30)  # Adjust width to fit within 900 pixels
-        headline_y = 700  # Starting y position for the headline
+        # Wrap the text to fit within max_width, slightly wider
+        wrapped_text = textwrap.wrap(headline, width=40)  # Increased from 30 to 40 for wider wrapping
+        headline_y = 680  # Starting y position for the headline (below image at 650)
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
             text_width = text_bbox[2] - text_bbox[0]
@@ -114,15 +114,15 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = logo.resize((150, 75), Image.Resampling.LANCZOS)
-            canvas.paste(logo, (40, 980), logo)  # Use logo as mask to preserve transparency
+            canvas.paste(logo, (40, 880), logo)  # Moved up from 980 to 880
         except FileNotFoundError:
-            draw.text((40, 980), "Logo Missing", fill="red", font=regular_font)
+            draw.text((40, 880), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 1000), "Visit our site", fill="yellow", font=regular_font)
+        draw.text((200, 900), "Visit our site", fill="yellow", font=regular_font)  # Moved up from 1000 to 900
 
         # Add website URL (bottom right)
-        draw.text((850, 1000), "facebook/leadne", fill="white", font=regular_font)
+        draw.text((850, 900), "facebook/leadne", fill="white", font=regular_font)  # Moved up from 1000 to 900
 
         # Save the photo card
         canvas.save(output_path)
