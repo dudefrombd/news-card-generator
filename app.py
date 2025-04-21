@@ -83,11 +83,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             canvas.paste(news_image, (image_x, 50))
         else:
             # Draw a placeholder if no image is available
-            draw.rectangle((140, 50, 940, 850), fill="gray")
+            draw.rectangle((140, 50, 940, 640), fill="gray")
             draw.text((400, 400), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((140, 50, 940, 850), outline="yellow", width=5)
+        draw.rectangle((140, 50, 940, 6400), outline="yellow", width=5)
 
         # Add the date (top center)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
