@@ -158,8 +158,15 @@ def resize_with_aspect_ratio(image, max_size):
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", output_path="photo_card.png"):
     try:
-        # Create a blank canvas
-        canvas = Image.new("RGB", CANVAS_SIZE, CANVAS_COLOR)
+        # Validate CANVAS_COLOR
+        canvas_color = CANVAS_COLOR if CANVAS_COLOR else "#000000"  # Fallback to black if empty
+
+        # Create a blank canvas with error handling
+        try:
+            canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
+        except ValueError as e:
+            raise Exception(f"Invalid canvas color '{canvas_color}': {str(e)}")
+
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts
