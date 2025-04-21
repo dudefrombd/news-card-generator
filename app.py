@@ -60,25 +60,26 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts with fallback
+        bangla_font_small = None
+        bangla_font_large = None
         try:
             bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
             bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 50)
         except IOError:
-            # Use default font if Bengali font is not found, with a message
-            print("Warning: NotoSerifBengali-Regular.ttf not found, using default font.")
+            print("Warning: NotoSerifBengali-Regular.ttf not found, trying Kalpurush.ttf...")
             try:
-                bangla_font_small = ImageFont.load_default()
-                bangla_font_large = ImageFont.load_default()
+                bangla_font_small = ImageFont.truetype("Kalpurush.ttf", 30)
+                bangla_font_large = ImageFont.truetype("Kalpurush.ttf", 50)
             except IOError:
-                print("Error: Default font is not available, Bengali characters might not render properly.")
+                print("Warning: Kalpurush.ttf not found, using default font (Bangla may not render correctly).")
                 bangla_font_small = ImageFont.load_default()
                 bangla_font_large = ImageFont.load_default()
 
         try:
             regular_font = ImageFont.truetype("Arial.ttf", 30)
         except IOError:
-            regular_font = ImageFont.load_default()
             print("Warning: Arial.ttf not found, using default font.")
+            regular_font = ImageFont.load_default()
 
         # Add the date (top center, with padding from top)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
@@ -93,7 +94,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)  # Updated to 840x600
+            news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)  # 840x600 as specified
             # Center the image horizontally
             image_x = (1080 - 840) // 2  # 120
             canvas.paste(news_image, (image_x, image_y))
@@ -103,10 +104,13 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((400, image_y + 300), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((120, image_y, 960, image_y + 600), outline="yellow", width=5)  # Updated for new image size
+        draw.rectangle((120, image_y, 960, image_y + 600), outline="yellow", width=5)
 
         # Add the headline (below the image, centered, within a fixed area)
         max_width = 900  # Fixed width for the headline area
+        # Test with a hardcoded Bangla string if the extracted headline fails
+        if "not found" in headline.lower():
+            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"  # Hardcoded Bangla test string
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
         # Wrap the text to fit within max_width, slightly wider
         wrapped_text = textwrap.wrap(headline, width=40)
@@ -127,10 +131,10 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((40, 950), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)  # Position unchanged
+        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)
 
         # Add website URL (bottom right)
-        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)  # Position unchanged
+        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
