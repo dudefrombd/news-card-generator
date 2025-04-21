@@ -61,10 +61,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
 
         # Load fonts with fallback
         try:
-             bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
-             bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 50)
+            bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
+            bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 50)
         except IOError:
-            # Use default font if Bengali font is not found, with a message
+            bangla_font_small = ImageFont.load_default()
+            bangla_font_large = ImageFont.load_default()
             print("Warning: NotoSerifBengali-Regular.ttf not found, using default font.")
         try:
             bangla_font_small = ImageFont.load_default()
