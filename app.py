@@ -142,7 +142,6 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             canvas.paste(headline_image, (text_x, headline_y), headline_image)
             headline_y += 60  # Move down for the next line (line spacing)
 
-        headline = "টেস্ট হেডলাইন"
 
         # Add the logo (bottom left) with transparency
         try:
