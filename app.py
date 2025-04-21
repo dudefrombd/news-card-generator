@@ -20,8 +20,8 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
-PADDING = 40  # Padding for right and bottom, left padding for logo adjusted separately
-LOGO_POSITION = (60, 910)  # Increased left padding to 60px
+PADDING = 60  # Padding for left (logo), right (source), and bottom
+LOGO_POSITION = (PADDING, 910)  # Left padding = 60px
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
 SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padding
 
@@ -29,7 +29,7 @@ SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padd
 def is_valid_url(url):
     regex = re.compile(
         r'^(https?://)?'  # http:// or https://
-        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # domain
+        r'([a-zA-Z0-9-]+\.)+[a-zA-Z k{2,}'  # domain
         r'(/[^?\s]*)?$'  # optional path
     )
     return re.match(regex, url) is not None
@@ -65,7 +65,7 @@ def extract_news_data(url):
 
         # Extract date
         date_tag = soup.find('meta', {'property': 'article:published_time'})
-        date_str = date_tag['content'] if date_tag else None
+        date_str = date_tag['content'] if date_tag else,None
         pub_date = None
         if date_str:
             try:
@@ -202,7 +202,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
 
         # Add the headline (below the image, centered)
         if "not found" in headline.lower():
-            headline = "কোন শিরোনাম পাওয়া যায়নি"
+            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
         headline = headline.encode('utf-8').decode('utf-8')
         wrapped_text = textwrap.wrap(headline, width=40)
         headline_y = HEADLINE_Y_START
@@ -226,12 +226,12 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         except FileNotFoundError:
             draw.text(LOGO_POSITION, "Logo Missing", fill="red", font=regular_font)
 
-        # Add the source (bottom right), adjust x to ensure right padding
+        # Add the source (bottom right), adjust x to ensure right padding matches logo's left padding
         source_text = f"Source: {main_domain}"
         text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
         text_width = text_bbox[2] - text_bbox[0]
-        # Right edge should be at x=1040 (1080 - 40 padding)
-        text_x = 1040 - text_width
+        # Right edge should be at x=1020 (1080 - 60 padding)
+        text_x = (CANVAS_SIZE[0] - PADDING) - text_width
         source_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - (text_bbox[3] - text_bbox[1])) // 2  # Align vertically with logo
         draw.text((text_x, source_y), source_text, fill="white", font=regular_font)
 
