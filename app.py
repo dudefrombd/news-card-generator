@@ -22,9 +22,9 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
-HEADLINE_BOTTOM_PADDING = 10  # Padding below headline before complementary color section
+HEADLINE_BOTTOM_PADDING = 20  # Padding below headline before complementary color section (increased to 20)
 PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section (changed to 20)
+LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
 
 # Function to validate URL
@@ -116,7 +116,7 @@ def download_image(image_url):
 
 # Function to load fonts with fallbacks and error handling
 def load_fonts():
-    bangla_font_small = bangla_font_large = regular_font = None
+    bangla_font_small = bangla_font_large = regular_font = bold_font = None
 
     # Load Bangla fonts with fallbacks
     bangla_fonts = ["SolaimanLipi.ttf", "NotoSerifBengali-Regular.ttf", "Kalpurush.ttf"]
@@ -138,7 +138,17 @@ def load_fonts():
     except IOError:
         regular_font = ImageFont.load_default()
 
-    return bangla_font_small, bangla_font_large, regular_font
+    # Load bold font for date text
+    try:
+        bold_font = ImageFont.truetype("Arial-Bold.ttf", 30)
+    except IOError:
+        # Fallback to a bold variant or default if Arial Bold is not available
+        try:
+            bold_font = ImageFont.truetype("Arial Bold.ttf", 30)
+        except IOError:
+            bold_font = ImageFont.load_default()
+
+    return bangla_font_small, bangla_font_large, regular_font, bold_font
 
 # Function to resize image while preserving aspect ratio
 def resize_with_aspect_ratio(image, max_size):
@@ -181,11 +191,11 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts
-        bangla_font_small, bangla_font_large, regular_font = load_fonts()
+        bangla_font_small, bangla_font_large, regular_font, bold_font = load_fonts()
 
-        # Add the date (top center, no background, white text)
+        # Add the date (top center, no background, white text, bold)
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
-        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=regular_font)
+        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=bold_font)
 
         # Download, crop, and add the news image
         image_y = DATE_POSITION[1] + DATE_BOX_SIZE[1] + DATE_GAP
