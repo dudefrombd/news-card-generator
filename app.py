@@ -87,7 +87,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((800, 600), Image.Resampling.LANCZOS)
+            news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)
             # Center the image horizontally
             image_x = (1080 - 800) // 2  # 140
             canvas.paste(news_image, (image_x, image_y))
