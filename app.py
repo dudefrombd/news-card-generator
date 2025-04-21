@@ -19,10 +19,10 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
-LOGO_POSITION = (40, 950)
-LOGO_MAX_SIZE = (150, 75)  # Maximum width and height for logo
-WEBSITE_TEXT_POSITION = (200, 970)
-WEBSITE_URL_POSITION = (850, 970)
+LOGO_POSITION = (40, 930)  # Moved up to accommodate larger logo
+LOGO_MAX_SIZE = (225, 113)  # Increased by 1.5x (150*1.5, 75*1.5)
+WEBSITE_TEXT_POSITION = (200, 1045)  # Adjusted to be below larger logo
+WEBSITE_URL_POSITION = (850, 1045)  # Adjusted to be below larger logo
 
 # Function to validate URL
 def is_valid_url(url):
@@ -81,36 +81,27 @@ def download_image(image_url):
 # Function to load fonts with fallbacks and error handling
 def load_fonts():
     bangla_font_small = bangla_font_large = regular_font = None
-    font_warnings = []
 
     # Load Bangla fonts with fallbacks
     bangla_fonts = ["SolaimanLipi.ttf", "NotoSerifBengali-Regular.ttf", "Kalpurush.ttf"]
     for font_file in bangla_fonts:
         try:
             if not os.path.exists(font_file):
-                font_warnings.append(f"Font file not found: {font_file}")
                 continue
             bangla_font_small = ImageFont.truetype(font_file, 30)
             bangla_font_large = ImageFont.truetype(font_file, 50)
-            st.write(f"Debug: Successfully loaded Bangla font: {font_file}")
             break
-        except IOError as e:
-            font_warnings.append(f"Error loading {font_file}: {str(e)}")
+        except IOError:
+            pass
     if bangla_font_small is None:
-        font_warnings.append("All Bangla fonts failed to load, using default font (Bangla may not render correctly).")
         bangla_font_small = bangla_font_large = ImageFont.load_default()
 
     # Load regular font for non-Bangla text
     try:
         regular_font = ImageFont.truetype("Arial.ttf", 30)
-        st.write("Debug: Successfully loaded regular font: Arial.ttf")
     except IOError:
-        font_warnings.append("Arial.ttf not found, using default font.")
         regular_font = ImageFont.load_default()
 
-    if font_warnings:
-        st.warning("Font Loading Issues:\n" + "\n".join(font_warnings))
-    
     return bangla_font_small, bangla_font_large, regular_font
 
 # Function to resize image while preserving aspect ratio
@@ -174,12 +165,9 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         if "not found" in headline.lower():
             headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
         headline = headline.encode('utf-8').decode('utf-8')
-        st.write(f"Debug: Headline text: {headline}")
         wrapped_text = textwrap.wrap(headline, width=40)
-        st.write(f"Debug: Wrapped headline: {wrapped_text}")
         headline_y = HEADLINE_Y_START
         if not wrapped_text:
-            st.warning("No wrapped text to render for headline!")
             draw.text((CANVAS_SIZE[0] // 2, headline_y), "Headline Missing", fill="white", font=regular_font, anchor="mm")
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
@@ -192,7 +180,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
-            # Center the logo vertically within the 75-pixel height space
+            # Center the logo vertically within the max height space
             logo_width, logo_height = logo.size
             logo_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - logo_height) // 2
             canvas.paste(logo, (LOGO_POSITION[0], logo_y), logo)
