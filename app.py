@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Main color
 NAVY_BLUE = "#003366"  # Complementary color for bottom section
-MUSTARD_YELLOW = "#FFB300"  # Border color for image
+MUSTARD_YELLOW = "#FFB300"  # Border color for image and divider
 IMAGE_SIZE = (840, 600)
 IMAGE_POSITION = (120, 150)  # Adjusted for centering
 DATE_BOX_SIZE = (300, 60)
@@ -22,7 +22,8 @@ DATE_GAP = 40  # Gap between date box and image
 HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
-HEADLINE_BOTTOM_PADDING = 20  # Padding below headline before complementary color section (increased to 20)
+HEADLINE_BOTTOM_PADDING = 20  # Padding below headline before divider
+DIVIDER_THICKNESS = 5  # Thickness of the divider (matches image border)
 PADDING = 60  # Padding for left (logo), right (source), and bottom
 LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
@@ -176,6 +177,35 @@ def resize_with_aspect_ratio(image, max_size):
 
     return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
+# Function to make the logo white while preserving transparency
+def make_logo_white(logo):
+    # Convert logo to RGBA if not already
+    logo = logo.convert("RGBA")
+    
+    # Split into R, G, B, A channels
+    r, g, b, a = logo.split()
+    
+    # Convert to grayscale to get intensity (ignoring color)
+    grayscale = logo.convert("L")
+    
+    # Create a white image of the same size
+    white_image = Image.new("RGB", logo.size, (255, 255, 255))
+    
+    # Convert white image to RGBA
+    white_image = white_image.convert("RGBA")
+    
+    # Split white image into channels
+    wr, wg, wb, _ = white_image.split()
+    
+    # Use the grayscale image as the alpha channel to blend white with transparency
+    white_logo = Image.merge("RGBA", (wr, wg, wb, grayscale))
+    
+    # Combine with the original alpha channel to preserve transparency
+    final_r, final_g, final_b, _ = white_logo.split()
+    final_logo = Image.merge("RGBA", (final_r, final_g, final_b, a))
+    
+    return final_logo
+
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", output_path="photo_card.png"):
     try:
@@ -232,15 +262,21 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         headline_bottom = HEADLINE_Y_START + (num_lines * HEADLINE_LINE_SPACING)
         divider_y = headline_bottom + HEADLINE_BOTTOM_PADDING
 
-        # Draw the complementary color section (navy_blue) from divider_y to canvas bottom
-        draw.rectangle((0, divider_y, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
+        # Draw the mustard yellow divider between brick_red and navy_blue sections
+        draw.rectangle((0, divider_y, CANVAS_SIZE[0], divider_y + DIVIDER_THICKNESS), fill=MUSTARD_YELLOW)
+
+        # Draw the complementary color section (navy_blue) from just below the divider to canvas bottom
+        navy_blue_start_y = divider_y + DIVIDER_THICKNESS
+        draw.rectangle((0, navy_blue_start_y, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
 
         # Position the logo and source in the navy_blue section with updated top padding
         logo_source_y = divider_y + LOGO_SOURCE_TOP_PADDING
 
-        # Add the logo (bottom left in navy_blue section) with aspect ratio preserved
+        # Add the logo (bottom left in navy_blue section) with aspect ratio preserved and make it white
         try:
             logo = Image.open(logo_path).convert("RGBA")
+            # Make the logo white while preserving transparency
+            logo = make_logo_white(logo)
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
             # Center the logo vertically within the max height space
             logo_width, logo_height = logo.size
