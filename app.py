@@ -111,10 +111,6 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Add a yellow border around the image
         draw.rectangle((120, image_y, 960, image_y + 600), outline="yellow", width=5)
 
-        # Debug: Draw a simple Bangla string to test font rendering
-        test_bangla = "টেস্ট বাংলা টেক্সট"  # Simple Bangla string to test rendering
-        draw.text((50, 750), test_bangla, fill="red", font=bangla_font_large)
-
         # Add the headline (below the image, centered, within a fixed area)
         max_width = 900  # Fixed width for the headline area
         # Test with a hardcoded Bangla string if the extracted headline fails
