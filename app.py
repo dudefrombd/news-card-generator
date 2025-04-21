@@ -92,16 +92,25 @@ def extract_news_data(url):
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Function to download and load an image from a URL
+# Function to download, crop, and load an image from a URL
 def download_image(image_url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
         response = requests.get(image_url, headers=headers, timeout=10)
         response.raise_for_status()
         image_data = BytesIO(response.content)
-        return Image.open(image_data)
+        image = Image.open(image_data)
+
+        # Crop the bottom 15% of the image
+        width, height = image.size
+        crop_height = int(height * 0.15)  # 15% of the height
+        new_height = height - crop_height
+        box = (0, 0, width, new_height)  # Crop from bottom
+        image = image.crop(box)
+
+        return image
     except Exception as e:
-        raise Exception(f"Failed to download image: {str(e)}")
+        raise Exception(f"Failed to download or crop image: {str(e)}")
 
 # Function to load fonts with fallbacks and error handling
 def load_fonts():
@@ -176,7 +185,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
         draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=regular_font)
 
-        # Download and add the news image
+        # Download, crop, and add the news image
         image_y = DATE_POSITION[1] + DATE_BOX_SIZE[1] + DATE_GAP
         if image_url:
             news_image = download_image(image_url)
