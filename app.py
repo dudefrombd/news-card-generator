@@ -138,16 +138,6 @@ def load_fonts():
     except IOError:
         regular_font = ImageFont.load_default()
 
-    # Load bold font for date text
-    try:
-        bold_font = ImageFont.truetype("Arial-Bold.ttf", 30)
-    except IOError:
-        # Fallback to a bold variant or default if Arial Bold is not available
-        try:
-            bold_font = ImageFont.truetype("Arial Bold.ttf", 30)
-        except IOError:
-            bold_font = ImageFont.load_default()
-
     return bangla_font_small, bangla_font_large, regular_font, bold_font
 
 # Function to resize image while preserving aspect ratio
