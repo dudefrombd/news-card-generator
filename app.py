@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Main color
-TEAL_GREEN = "#006D57"  # Complementary color for bottom section
+TEAL_GREEN = "#004D40"  # Complementary color for bottom section
 IMAGE_SIZE = (840, 600)
 IMAGE_POSITION = (120, 150)  # Adjusted for centering
 DATE_BOX_SIZE = (300, 60)
