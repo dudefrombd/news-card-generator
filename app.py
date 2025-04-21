@@ -67,13 +67,6 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             bangla_font_small = ImageFont.load_default()
             bangla_font_large = ImageFont.load_default()
             print("Warning: NotoSerifBengali-Regular.ttf not found, using default font.")
-        try:
-            bangla_font_small = ImageFont.load_default()
-            bangla_font_large = ImageFont.load_default()
-        except IOError:
-            print("Error: Default font is not available, Bengali characters might not render properly.")
-            bangla_font_small = ImageFont.load_default()
-            bangla_font_large = ImageFont.load_default()
 
         try:
             regular_font = ImageFont.truetype("Arial.ttf", 30)
@@ -87,10 +80,11 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         date_box_height = 60
         date_box_x = (1080 - date_box_width) // 2
         date_box_y = 50  # Padding from top
-        draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="white", font=regular_font)
+        draw.rectangle((date_box_x, date_box_y, date_box_x + date_box_width, date_box_y + date_box_height), fill="white")
+        draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="black", font=regular_font)
 
         # Download and add the news image (resize to 840x600)
-        image_y = date_box_y + date_box_height + 20  # Gap between date and image (40 pixels)
+        image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
         if image_url:
             news_image = download_image(image_url)
             news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)  # Updated to 840x600
@@ -127,10 +121,10 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
             draw.text((40, 950), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 970), "facebook.com/leadne", fill="white", font=regular_font)  # Position unchanged
+        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)  # Position unchanged
 
         # Add website URL (bottom right)
-        draw.text((850, 970), "", fill="white", font=regular_font)  # Position unchanged
+        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)  # Position unchanged
 
         # Save the photo card
         canvas.save(output_path)
