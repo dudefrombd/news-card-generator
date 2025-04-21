@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
-CANVAS_COLOR = "#003087"  # Blue background
+BRICK_RED = "#9E2A2F"  # Main color
+TEAL_GREEN = "#006D57"  # Complementary color for bottom section
 IMAGE_SIZE = (840, 600)
 IMAGE_POSITION = (120, 150)  # Adjusted for centering
 DATE_BOX_SIZE = (300, 60)
@@ -21,9 +22,8 @@ HEADLINE_MAX_WIDTH = 900
 HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
 HEADLINE_LINE_SPACING = 60
 PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_POSITION = (PADDING, 910)  # Left padding = 60px
+LOGO_SOURCE_TOP_PADDING = 30  # Padding above logo/source section
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
-SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padding
 
 # Function to validate URL
 def is_valid_url(url):
@@ -167,8 +167,8 @@ def resize_with_aspect_ratio(image, max_size):
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", output_path="photo_card.png"):
     try:
-        # Validate CANVAS_COLOR
-        canvas_color = CANVAS_COLOR if CANVAS_COLOR else "#000000"  # Fallback to black if empty
+        # Validate BRICK_RED color
+        canvas_color = BRICK_RED if BRICK_RED else "#000000"  # Fallback to black if empty
 
         # Create a blank canvas with error handling
         try:
@@ -215,24 +215,34 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Add the logo (bottom left) with aspect ratio preserved
+        # Calculate the bottom of the headline
+        num_lines = len(wrapped_text) if wrapped_text else 1
+        headline_bottom = HEADLINE_Y_START + (num_lines * HEADLINE_LINE_SPACING)
+
+        # Draw the complementary color section (teal_green) from headline bottom to canvas bottom
+        draw.rectangle((0, headline_bottom, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=TEAL_GREEN)
+
+        # Position the logo and source in the teal_green section with top padding
+        logo_source_y = headline_bottom + LOGO_SOURCE_TOP_PADDING
+
+        # Add the logo (bottom left in teal_green section) with aspect ratio preserved
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
             # Center the logo vertically within the max height space
             logo_width, logo_height = logo.size
-            logo_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - logo_height) // 2
-            canvas.paste(logo, (LOGO_POSITION[0], logo_y), logo)
+            logo_y = logo_source_y + (LOGO_MAX_SIZE[1] - logo_height) // 2
+            canvas.paste(logo, (PADDING, logo_y), logo)
         except FileNotFoundError:
-            draw.text(LOGO_POSITION, "Logo Missing", fill="red", font=regular_font)
+            draw.text((PADDING, logo_source_y), "Logo Missing", fill="red", font=regular_font)
 
-        # Add the source (bottom right), adjust x to ensure right padding matches logo's left padding
+        # Add the source (bottom right in teal_green section), adjust x to ensure right padding
         source_text = f"Source: {main_domain}"
         text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
         text_width = text_bbox[2] - text_bbox[0]
         # Right edge should be at x=1020 (1080 - 60 padding)
         text_x = (CANVAS_SIZE[0] - PADDING) - text_width
-        source_y = LOGO_POSITION[1] + (LOGO_MAX_SIZE[1] - (text_bbox[3] - text_bbox[1])) // 2  # Align vertically with logo
+        source_y = logo_source_y + (LOGO_MAX_SIZE[1] - (text_bbox[3] - text_bbox[1])) // 2  # Align vertically with logo
         draw.text((text_x, source_y), source_text, fill="white", font=regular_font)
 
         # Save the photo card
