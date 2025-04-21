@@ -3,6 +3,7 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from bs4 import BeautifulSoup
+import datetime
 
 # Function to extract news details from the URL
 def extract_news_data(url):
@@ -33,72 +34,69 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 from io import BytesIO
 
-def create_news_card(date, headline, image_url, source):
-    # Create a blank image (card background) with a light gray background
-    background = Image.new('RGB', (800, 800), color='#F2F2F2')  # Light gray background
+def create_photo_card(headline, image_path, pub_date, logo_path="logo.png", output_path="photo_card.png"):
+    # Create a blank canvas (800x600, blue background)
+    canvas = Image.new("RGB", (800, 600), "#003087")  # Blue background
+    draw = ImageDraw.Draw(canvas)
 
-    # Draw on the background
-    draw = ImageDraw.Draw(background)
+    # Add the news image (resize to fit within a frame)
+    news_image = Image.open(image_path)
+    news_image = news_image.resize((700, 300), Image.LANCZOS)
+    canvas.paste(news_image, (50, 50))
 
-    # Add headline (title)
-    try:
-        title_font = ImageFont.truetype('arial.ttf', 40)  # Font size for the headline
-    except IOError:
-        title_font = ImageFont.load_default()  # Fallback if the font is not available
+    # Add a yellow border around the image
+    draw.rectangle((50, 50, 750, 350), outline="yellow", width=5)
 
-    draw.text((50, 50), headline, fill='#2C3E50', font=title_font)  # Dark gray color for headline
+    # Add the date (top center)
+    if pub_date:
+        date_str = pub_date.strftime("%d %B %Y")
+    else:
+        date_str = datetime.datetime.now().strftime("%d %B %Y")
+    draw.rectangle((300, 10, 500, 40), fill="white")
+    draw.text((350, 15), date_str, fill="black", font=ImageFont.truetype("arial.ttf", 20))
 
-    # Add the publication date under the headline
-    try:
-        date_font = ImageFont.truetype('TiroBangla.ttf', 30)  # Font size for the date
-    except IOError:
-        date_font = ImageFont.load_default()  # Fallback if the font is not available
+    # Add the headline (below the image)
+    draw.text((50, 370), headline, fill="white", font=ImageFont.truetype("arial.ttf", 30))
 
-    draw.text((50, 120), f"Published: {date}", fill='#7F8C8D', font=date_font)  # Light gray color for date
+    # Add the logo (bottom left)
+    logo = Image.open(logo_path)
+    logo = logo.resize((100, 50), Image.LANCZOS)
+    canvas.paste(logo, (50, 500))
 
-    # Download the image from the URL
-    img_response = requests.get(image_url)
-    img = Image.open(BytesIO(img_response.content))
-    img = img.resize((600, 400))  # Resize image to fit into the card
-    background.paste(img, (100, 180))
+    # Add call to action (bottom right) - QR code
+    import qrcode
+    qr = qrcode.QRCode(box_size=5)
+    qr.add_data("https://rtvonline.com")  # Replace with your site
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill="black", back_color="white")
+    qr_img = qr_img.resize((100, 100), Image.LANCZOS)
+    canvas.paste(qr_img, (650, 450))
 
-    # Add source logo (if available)
-    try:
-        logo = Image.open('logo.png')  # Provide the path to the logo
-        logo = logo.resize((100, 100))
-        background.paste(logo, (650, 650))
-    except FileNotFoundError:
-        pass  # If logo not found, continue without logo
+    # Add website text below the logo
+    draw.text((160, 520), "Visit our site", fill="yellow", font=ImageFont.truetype("arial.ttf", 20))
 
-    # Add the news source name below the image
-    source_font = ImageFont.load_default()  # Default font for source name
-    draw.text((50, 600), f"Source: {source}", fill='#2980B9', font=source_font)  # Blue color for source
-
-    # Draw a call-to-action button (optional)
-    draw.rectangle([550, 720, 750, 760], fill="#2980B9")  # Blue button background
-    button_font = ImageFont.load_default()  # Font for button text
-    draw.text((570, 725), "Read more", fill='white', font=button_font)  # White text on button
-
-    # Add a border around the card (optional)
-    draw.rectangle([10, 10, 790, 790], outline='#BDC3C7', width=5)  # Light border around the card
-
-    # Save or display the generated image
-    background.save('news_card.png')
-    return background
+    # Save the photo card
+    canvas.save(output_path)
+    return output_path
 
 # Streamlit app
-def main():
-    st.title("News Photo Card Generator")
-    
-    news_url = st.text_input("Enter the News URL")
+import streamlit as st
 
-    if news_url:  # Ensure the URL is provided
+st.title("Automated News Photo Card Generator")
+url = st.text_input("Enter the news article URL:")
+
+if st.button("Generate Photo Card"):
+    if url:
         try:
-            date, headline, image_url, source = extract_news_data(news_url)
-            news_card = create_news_card(date, headline, image_url, source)
-            st.image(news_card)
+            # Extract data
+            headline, image_path, pub_date = extract_news_data(url)
+            # Create photo card
+            output_path = create_photo_card(headline, image_path, pub_date)
+            # Display the result
+            st.image(output_path, caption="Generated Photo Card")
+            with open(output_path, "rb") as file:
+                st.download_button("Download Photo Card", file, file_name="photo_card.png")
         except Exception as e:
-            st.error(f"An error occurred: {e}")  # Display error if any occurs
-
-if __name__ == '__main__':
-    main()
+            st.error(f"Error: {str(e)}")
+    else:
+        st.warning("Please enter a valid URL.")
