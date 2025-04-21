@@ -76,15 +76,15 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Download and add the news image (resize to fit within a frame)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((1000, 450), Image.Resampling.LANCZOS)
+            news_image = news_image.resize((800, 600), Image.Resampling.LANCZOS)
             canvas.paste(news_image, (40, 40))
         else:
             # Draw a placeholder if no image is available
-            draw.rectangle((40, 40, 1040, 490), fill="gray")
+            draw.rectangle((40, 40, 800, 600), fill="gray")
             draw.text((400, 200), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((40, 40, 1040, 490), outline="yellow", width=5)
+        draw.rectangle((40, 40, 800, 600), outline="yellow", width=5)
 
         # Add the date (top center)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
