@@ -29,7 +29,7 @@ SOURCE_POSITION = (850, 910)  # Aligned with logo, adjusted later for right padd
 def is_valid_url(url):
     regex = re.compile(
         r'^(https?://)?'  # http:// or https://
-        r'([a-zA-Z0-9-]+\.)+[a-zA-Z k{2,}'  # domain
+        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # domain
         r'(/[^?\s]*)?$'  # optional path
     )
     return re.match(regex, url) is not None
@@ -65,7 +65,7 @@ def extract_news_data(url):
 
         # Extract date
         date_tag = soup.find('meta', {'property': 'article:published_time'})
-        date_str = date_tag['content'] if date_tag else,None
+        date_str = date_tag['content'] if date_tag else None
         pub_date = None
         if date_str:
             try:
