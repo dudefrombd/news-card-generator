@@ -5,11 +5,6 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import datetime
 import textwrap  # For text wrapping
-import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
 
 # Function to extract news details from the URL
 def extract_news_data(url):
@@ -57,27 +52,6 @@ def download_image(image_url):
     except Exception as e:
         raise Exception(f"Failed to download image: {str(e)}")
 
-# Function to render text with matplotlib and return as a PIL image
-def render_text_with_matplotlib(text, font_path, font_size, text_color, max_width_pixels):
-    font = FontProperties(fname=font_path, size=font_size)
-    fig, ax = plt.subplots(figsize=(max_width_pixels / 100, 1), facecolor='none')  # Convert pixels to inches (approx)
-    ax.axis('off')
-    ax.text(0.5, 0.5, text, ha='center', va='center', fontproperties=font, color=text_color)
-    fig.canvas.draw()
-    # Convert matplotlib figure to numpy array
-    image_data = np.frombuffer(fig.canvas.tostring_argb(), dtype=np.uint8)
-    image_data = image_data.reshape(fig.canvas.get_width_height()[::-1] + (4,))
-    # Convert ARGB to RGBA
-    image_data = np.roll(image_data, -1, axis=2)
-    # Create PIL image
-    image = Image.frombytes("RGBA", image_data.shape[:2], image_data)
-    plt.close(fig)
-    # Trim transparent borders
-    bbox = image.getbbox()
-    if bbox:
-        image = image.crop(bbox)
-    return image
-
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", output_path="photo_card.png"):
     try:
@@ -85,7 +59,27 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         canvas = Image.new("RGB", (1080, 1080), "#003087")  # Blue background
         draw = ImageDraw.Draw(canvas)
 
-        # Load fonts for non-Bangla text (Pillow)
+        # Load fonts with fallback
+        bangla_font_small = None
+        bangla_font_large = None
+        try:
+            bangla_font_small = ImageFont.truetype("SolaimanLipi.ttf", 30)
+            bangla_font_large = ImageFont.truetype("SolaimanLipi.ttf", 50)
+        except IOError:
+            print("Warning: SolaimanLipi.ttf not found, trying NotoSerifBengali-Regular.ttf...")
+            try:
+                bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
+                bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 50)
+            except IOError:
+                print("Warning: NotoSerifBengali-Regular.ttf not found, trying Kalpurush.ttf...")
+                try:
+                    bangla_font_small = ImageFont.truetype("Kalpurush.ttf", 30)
+                    bangla_font_large = ImageFont.truetype("Kalpurush.ttf", 50)
+                except IOError:
+                    print("Warning: Kalpurush.ttf not found, using default font (Bangla may not render correctly).")
+                    bangla_font_small = ImageFont.load_default()
+                    bangla_font_large = ImageFont.load_default()
+
         try:
             regular_font = ImageFont.truetype("Arial.ttf", 30)
         except IOError:
@@ -117,31 +111,25 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Add a yellow border around the image
         draw.rectangle((120, image_y, 960, image_y + 600), outline="yellow", width=5)
 
-        # Debug: Draw a simple Bangla string to test font rendering (using matplotlib)
-        test_bangla = "টেস্ট বাংলা টেক্সট"
-        test_image = render_text_with_matplotlib(test_bangla, "SolaimanLipi.ttf", 50, "red", 900)
-        test_x = 50
-        test_y = 750
-        canvas.paste(test_image, (test_x, test_y), test_image)
+        # Debug: Draw a simple Bangla string to test font rendering
+        test_bangla = "টেস্ট বাংলা টেক্সট"  # Simple Bangla string to test rendering
+        draw.text((50, 750), test_bangla, fill="red", font=bangla_font_large)
 
-        # Add the headline (below the image, centered, within a fixed area, using matplotlib)
+        # Add the headline (below the image, centered, within a fixed area)
         max_width = 900  # Fixed width for the headline area
         # Test with a hardcoded Bangla string if the extracted headline fails
         if "not found" in headline.lower():
-            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
+            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"  # Hardcoded Bangla test string
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
-        # Wrap the text to fit within max_width
+        # Wrap the text to fit within max_width, slightly wider
         wrapped_text = textwrap.wrap(headline, width=40)
         headline_y = image_y + 600 + 30  # Start 30 pixels below the image (y=780)
         for line in wrapped_text:
-            # Render each line with matplotlib
-            headline_image = render_text_with_matplotlib(line, "SolaimanLipi.ttf", 50, "white", 900)
-            # Center the rendered image
-            headline_width = headline_image.width
-            text_x = (1080 - headline_width) // 2
-            canvas.paste(headline_image, (text_x, headline_y), headline_image)
+            text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_x = (1080 - text_width) // 2  # Center each line
+            draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += 60  # Move down for the next line (line spacing)
-
 
         # Add the logo (bottom left) with transparency
         try:
