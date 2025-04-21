@@ -4,7 +4,6 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from bs4 import BeautifulSoup
 import datetime
-import qrcode
 
 # Function to extract news details from the URL
 def extract_news_data(url):
