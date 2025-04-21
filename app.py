@@ -76,34 +76,34 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
 
         # Add the date (top center, with padding from top)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
-        date_box_width = 300  # Increased width for better visibility
-        date_box_height = 60  # Increased height for better visibility
+        date_box_width = 300
+        date_box_height = 60
         date_box_x = (1080 - date_box_width) // 2
-        date_box_y = 50  # Added padding from top
+        date_box_y = 50  # Padding from top
         draw.rectangle((date_box_x, date_box_y, date_box_x + date_box_width, date_box_y + date_box_height), fill="white")
         draw.text((date_box_x + 40, date_box_y + 15), date_str, fill="black", font=regular_font)
 
-        # Download and add the news image (resize to 800x600)
+        # Download and add the news image (resize to 840x600)
         image_y = date_box_y + date_box_height + 40  # Gap between date and image (40 pixels)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)
+            news_image = news_image.resize((840, 600), Image.Resampling.LANCZOS)  # Updated to 840x600
             # Center the image horizontally
-            image_x = (1080 - 800) // 2  # 140
+            image_x = (1080 - 840) // 2  # 120
             canvas.paste(news_image, (image_x, image_y))
         else:
             # Draw a placeholder if no image is available
-            draw.rectangle((140, image_y, 940, image_y + 600), fill="gray")
+            draw.rectangle((120, image_y, 960, image_y + 600), fill="gray")
             draw.text((400, image_y + 300), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((140, image_y, 940, image_y + 600), outline="yellow", width=5)
+        draw.rectangle((120, image_y, 960, image_y + 600), outline="yellow", width=5)  # Updated for new image size
 
         # Add the headline (below the image, centered, within a fixed area)
         max_width = 900  # Fixed width for the headline area
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
         # Wrap the text to fit within max_width, slightly wider
-        wrapped_text = textwrap.wrap(headline, width=40)  # Kept as 40 for wider wrapping
+        wrapped_text = textwrap.wrap(headline, width=40)
         headline_y = image_y + 600 + 30  # Start 30 pixels below the image
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
@@ -116,15 +116,15 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = logo.resize((150, 75), Image.Resampling.LANCZOS)
-            canvas.paste(logo, (40, 950), logo)  # Adjusted to fit new layout
+            canvas.paste(logo, (40, 950), logo)  # Position unchanged
         except FileNotFoundError:
             draw.text((40, 950), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 970), "facebook.com/leadne", fill="yellow", font=regular_font)  # Adjusted to fit new layout
+        draw.text((200, 970), "Visit our site", fill="yellow", font=regular_font)  # Position unchanged
 
         # Add website URL (bottom right)
-        draw.text((850, 970), "", fill="white", font=regular_font)  # Adjusted to fit new layout
+        draw.text((850, 970), "facebook/leadne", fill="white", font=regular_font)  # Position unchanged
 
         # Save the photo card
         canvas.save(output_path)
