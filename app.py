@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from bs4 import BeautifulSoup
 import datetime
+import textwrap  # Added for text wrapping
 
 # Function to extract news details from the URL
 def extract_news_data(url):
@@ -76,7 +77,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Download and add the news image (resize to fit within a frame)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((800, 800), Image.Resampling.LANCZOS)
+            news_image = news_image.resize((800, 600), Image.Resampling.LANCZOS)
             # Center the image horizontally
             image_x = (1080 - 800) // 2  # 140
             canvas.paste(news_image, (image_x, 50))
@@ -96,14 +97,18 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw.rectangle((date_box_x, 10, date_box_x + date_box_width, 10 + date_box_height), fill="white")
         draw.text((date_box_x + 30, 15), date_str, fill="black", font=regular_font)
 
-        # Add the headline (below the image, centered)
-        headline = (headline[:60] + "...") if len(headline) > 60 else headline
-        # Ensure headline is UTF-8 encoded for Bangla
-        headline = headline.encode('utf-8').decode('utf-8')
-        text_bbox = draw.textbbox((0, 0), headline, font=bangla_font_large)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_x = (1080 - text_width) // 2
-        draw.text((text_x, 880), headline, fill="white", font=bangla_font_large)
+        # Add the headline (below the image, centered, within a fixed area)
+        max_width = 900  # Fixed width for the headline area
+        headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
+        # Wrap the text to fit within max_width
+        wrapped_text = textwrap.wrap(headline, width=30)  # Adjust width to fit within 900 pixels
+        headline_y = 880  # Starting y position for the headline
+        for line in wrapped_text:
+            text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_x = (1080 - text_width) // 2  # Center each line
+            draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
+            headline_y += 60  # Move down for the next line (line spacing)
 
         # Add the logo (bottom left) with transparency
         try:
