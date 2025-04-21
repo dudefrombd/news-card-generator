@@ -138,7 +138,7 @@ def load_fonts():
     except IOError:
         regular_font = ImageFont.load_default()
 
-    return bangla_font_small, bangla_font_large, regular_font, bold_font
+    return bangla_font_small, bangla_font_large, regular_font
 
 # Function to resize image while preserving aspect ratio
 def resize_with_aspect_ratio(image, max_size):
