@@ -98,7 +98,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         draw.text((date_box_x + 30, 15), date_str, fill="black", font=regular_font)
 
         # Add the headline (below the image, centered, within a fixed area)
-        max_width = 900  # Fixed width for the headline area
+        max_width = 960  # Fixed width for the headline area
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
         # Wrap the text to fit within max_width
         wrapped_text = textwrap.wrap(headline, width=30)  # Adjust width to fit within 900 pixels
