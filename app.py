@@ -54,21 +54,21 @@ def download_image(image_url):
 # Function to create the news card
 def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", output_path="photo_card.png"):
     try:
-        # Create a blank canvas (1080x720, blue background)
+        # Create a blank canvas (1080x1080, blue background)
         canvas = Image.new("RGB", (1080, 1080), "#003087")  # Blue background
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts with fallback
         try:
-            bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)
-            bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 40)
+            bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
+            bangla_font_large = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 50)
         except IOError:
             bangla_font_small = ImageFont.load_default()
             bangla_font_large = ImageFont.load_default()
             print("Warning: NotoSerifBengali-Regular.ttf not found, using default font.")
 
         try:
-            regular_font = ImageFont.truetype("Arial.ttf", 24)
+            regular_font = ImageFont.truetype("Arial.ttf", 30)
         except IOError:
             regular_font = ImageFont.load_default()
             print("Warning: Arial.ttf not found, using default font.")
@@ -76,23 +76,25 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         # Download and add the news image (resize to fit within a frame)
         if image_url:
             news_image = download_image(image_url)
-            news_image = news_image.resize((800, 600), Image.Resampling.LANCZOS)
-            canvas.paste(news_image, (40, 40))
+            news_image = news_image.resize((800, 800), Image.Resampling.LANCZOS)
+            # Center the image horizontally
+            image_x = (1080 - 800) // 2  # 140
+            canvas.paste(news_image, (image_x, 50))
         else:
             # Draw a placeholder if no image is available
-            draw.rectangle((40, 40, 800, 600), fill="gray")
-            draw.text((400, 200), "No Image Available", fill="white", font=regular_font)
+            draw.rectangle((140, 50, 940, 850), fill="gray")
+            draw.text((400, 400), "No Image Available", fill="white", font=regular_font)
 
         # Add a yellow border around the image
-        draw.rectangle((40, 40, 800, 600), outline="yellow", width=5)
+        draw.rectangle((140, 50, 940, 850), outline="yellow", width=5)
 
         # Add the date (top center)
         date_str = pub_date.strftime("%d April %Y") if pub_date else datetime.datetime.now().strftime("%d April %Y")
-        date_box_width = 200
-        date_box_height = 40
+        date_box_width = 250
+        date_box_height = 50
         date_box_x = (1080 - date_box_width) // 2
         draw.rectangle((date_box_x, 10, date_box_x + date_box_width, 10 + date_box_height), fill="white")
-        draw.text((date_box_x + 20, 15), date_str, fill="black", font=regular_font)
+        draw.text((date_box_x + 30, 15), date_str, fill="black", font=regular_font)
 
         # Add the headline (below the image, centered)
         headline = (headline[:60] + "...") if len(headline) > 60 else headline
@@ -101,21 +103,21 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         text_bbox = draw.textbbox((0, 0), headline, font=bangla_font_large)
         text_width = text_bbox[2] - text_bbox[0]
         text_x = (1080 - text_width) // 2
-        draw.text((text_x, 510), headline, fill="white", font=bangla_font_large)
+        draw.text((text_x, 880), headline, fill="white", font=bangla_font_large)
 
         # Add the logo (bottom left) with transparency
         try:
             logo = Image.open(logo_path).convert("RGBA")
             logo = logo.resize((150, 75), Image.Resampling.LANCZOS)
-            canvas.paste(logo, (40, 620), logo)  # Use logo as mask to preserve transparency
+            canvas.paste(logo, (40, 980), logo)  # Use logo as mask to preserve transparency
         except FileNotFoundError:
-            draw.text((40, 620), "Logo Missing", fill="red", font=regular_font)
+            draw.text((40, 980), "Logo Missing", fill="red", font=regular_font)
 
         # Add website text below the logo
-        draw.text((200, 640), "Visit our site", fill="yellow", font=regular_font)
+        draw.text((200, 1000), "Visit our site", fill="yellow", font=regular_font)
 
         # Add website URL (bottom right)
-        draw.text((900, 640), "facebook/leadne", fill="white", font=regular_font)
+        draw.text((850, 1000), "facebook/leadne", fill="white", font=regular_font)
 
         # Save the photo card
         canvas.save(output_path)
