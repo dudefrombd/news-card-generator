@@ -85,14 +85,6 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         logo = logo.resize((100, 50), Image.Resampling.LANCZOS)
         canvas.paste(logo, (50, 500))
 
-        # Add call to action (bottom right) - QR code
-        qr = qrcode.QRCode(box_size=5)
-        qr.add_data("https://example.com")  # Replace with your site
-        qr.make(fit=True)
-        qr_img = qr.make_image(fill="black", back_color="white")
-        qr_img = qr_img.resize((100, 100), Image.Resampling.LANCZOS)
-        canvas.paste(qr_img, (650, 450))
-
         # Add website text below the logo
         draw.text((160, 520), "Visit our site", fill="yellow", font=ImageFont.truetype("arial.ttf", 20))
 
