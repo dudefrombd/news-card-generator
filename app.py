@@ -102,7 +102,7 @@ def create_photo_card(headline, image_url, pub_date, logo_path="logo.png", outpu
         headline = headline.encode('utf-8').decode('utf-8')  # Ensure UTF-8 encoding for Bangla
         # Wrap the text to fit within max_width
         wrapped_text = textwrap.wrap(headline, width=30)  # Adjust width to fit within 900 pixels
-        headline_y = 600  # Starting y position for the headline
+        headline_y = 700  # Starting y position for the headline
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
             text_width = text_bbox[2] - text_bbox[0]
