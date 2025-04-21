@@ -106,7 +106,7 @@ def download_image(image_url):
 
         # Crop the bottom 15% of the image
         width, height = image.size
-        crop_height = int(height * 0.15)  # 15% of the height
+        crop_height = int(height * 0.17)  # 17% of the height
         new_height = height - crop_height
         box = (0, 0, width, new_height)  # Crop from bottom
         image = image.crop(box)
