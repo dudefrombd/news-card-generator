@@ -8,6 +8,8 @@ import textwrap  # For text wrapping
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 
 # Function to extract news details from the URL
 def extract_news_data(url):
