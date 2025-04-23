@@ -11,22 +11,23 @@ from urllib.parse import urlparse
 
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
-BRICK_RED = "#9E2A2F"  # Main color
-NAVY_BLUE = "#003366"  # Complementary color for bottom section
-MUSTARD_YELLOW = "#FFB300"  # Border color for image and divider
-IMAGE_SIZE = (840, 600)
-IMAGE_POSITION = (120, 150)  # Adjusted for centering
-DATE_BOX_SIZE = (300, 60)
-DATE_POSITION = (390, 50)  # (1080 - 300) // 2 = 390
-DATE_GAP = 40  # Gap between date box and image
-HEADLINE_MAX_WIDTH = 900
-HEADLINE_Y_START = 780  # Image at y=150, height=600, gap=30
+BRICK_RED = "#9E2A2F"  # Background color
+IMAGE_SIZE = (1080, 660)  # Image area from top
+SOURCE_BOX_HEIGHT = 50  # Increased from 40 to 50 px
+SOURCE_BOX_Y = 620  # Position of source text background box
+DIVIDER_Y = 670  # Adjusted: 620 + 50 (source box height)
+DIVIDER_THICKNESS = 5  # Thickness of the divider
+MUSTARD_YELLOW = "#FFB300"  # Divider color
+HEADLINE_Y_START = 710  # Adjusted: 670 (divider) + 40 (top padding)
+HEADLINE_WIDTH = 960  # Changed from 1000 to 960 px
 HEADLINE_LINE_SPACING = 60
-HEADLINE_BOTTOM_PADDING = 20  # Padding below headline before divider
-DIVIDER_THICKNESS = 5  # Thickness of the divider (matches image border)
-PADDING = 60  # Padding for left (logo), right (source), and bottom
-LOGO_SOURCE_TOP_PADDING = 20  # Padding above logo/source section
+DATE_SOURCE_Y = 930  # Date and source text position
+PADDING = 40  # Padding for left, right, and top
+BOTTOM_PADDING = 20  # Bottom padding for date/source area
+AD_AREA_Y = 990  # Ad area position
+AD_AREA_SIZE = (1080, 90)  # Ad area dimensions
 LOGO_MAX_SIZE = (225, 113)  # Max size of logo
+LOGO_POSITION = (1080 - 40 - 225, 50)  # 40 px from right, 50 px from top
 
 # Function to validate URL
 def is_valid_url(url):
@@ -42,18 +43,13 @@ def extract_main_domain(url):
     try:
         parsed_url = urlparse(url)
         domain = parsed_url.netloc
-        # Remove "www." if present
         if domain.startswith("www."):
             domain = domain[4:]
-        # Split by dots
         parts = domain.split(".")
         if len(parts) >= 3:
-            # Check if the second-to-last part is a common suffix (e.g., "co" in "co.uk")
             common_suffixes = ["co", "org", "gov", "edu"]
             if parts[-2] in common_suffixes:
-                # Take the last three parts (e.g., bbc.co.uk)
                 return ".".join(parts[-3:])
-        # Otherwise, take the last two parts (e.g., ntvbd.com -> ntvbd)
         return ".".join(parts[-2:])
     except Exception:
         return "Unknown"
@@ -66,7 +62,6 @@ def extract_news_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extract date
         date_tag = soup.find('meta', {'property': 'article:published_time'})
         date_str = date_tag['content'] if date_tag else None
         pub_date = None
@@ -76,19 +71,15 @@ def extract_news_data(url):
             except ValueError:
                 pub_date = None
 
-        # Extract headline
         headline_tag = soup.find('meta', {'property': 'og:title'})
         headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
-        # Extract image URL
         image_tag = soup.find('meta', {'property': 'og:image'})
         image_url = image_tag['content'] if image_tag else None
 
-        # Extract source
         source_tag = soup.find('meta', {'property': 'og:site_name'})
         source = source_tag['content'] if source_tag else 'Source not found'
 
-        # Extract main domain from URL
         main_domain = extract_main_domain(url)
 
         return pub_date, headline, image_url, source, main_domain
@@ -106,7 +97,7 @@ def download_image(image_url):
 
         # Crop the bottom 15% of the image
         width, height = image.size
-        crop_height = int(height * 0.20)  # 20% of the height
+        crop_height = int(height * 0.15)  # 15% of the height
         new_height = height - crop_height
         box = (0, 0, width, new_height)  # Crop from bottom
         image = image.crop(box)
@@ -117,39 +108,27 @@ def download_image(image_url):
 
 # Function to load fonts with fallbacks and error handling
 def load_fonts():
-    bangla_font_small = bangla_font_large = regular_font = bold_font = None
+    bangla_font_small = bangla_font_large = regular_font = None
 
-    # Load Bangla fonts with fallbacks
-    bangla_fonts = ["SolaimanLipi.ttf", "NotoSerifBengali-Regular.ttf", "Kalpurush.ttf"]
-    for font_file in bangla_fonts:
-        try:
-            if not os.path.exists(font_file):
-                continue
-            bangla_font_small = ImageFont.truetype(font_file, 30)
-            bangla_font_large = ImageFont.truetype(font_file, 50)
-            break
-        except IOError:
-            pass
-    if bangla_font_small is None:
-        bangla_font_small = bangla_font_large = ImageFont.load_default()
-
-    # Load regular font for non-Bangla text
+    # Load Bangla font for headline (NotoSerifBengali-Bold.ttf)
     try:
-        regular_font = ImageFont.truetype("Arial.ttf", 30)
+        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 50)
+    except IOError:
+        bangla_font_large = ImageFont.load_default()
+
+    # Load Bangla font for date and comment text (NotoSerifBengali-Regular.ttf)
+    try:
+        bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 30)
+    except IOError:
+        bangla_font_small = ImageFont.load_default()
+
+    # Load regular font for source text (NotoSerifBengali-Regular.ttf, reduced size)
+    try:
+        regular_font = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)  # Reduced from 30 to 24
     except IOError:
         regular_font = ImageFont.load_default()
 
-    # Load bold font for date text
-    try:
-        bold_font = ImageFont.truetype("Arial-Bold.ttf", 30)
-    except IOError:
-        # Fallback to a bold variant or default if Arial Bold is not available
-        try:
-            bold_font = ImageFont.truetype("Arial Bold.ttf", 30)
-        except IOError:
-            bold_font = ImageFont.load_default()
-
-    return bangla_font_small, bangla_font_large, regular_font, bold_font
+    return bangla_font_small, bangla_font_large, regular_font
 
 # Function to resize image while preserving aspect ratio
 def resize_with_aspect_ratio(image, max_size):
@@ -157,17 +136,13 @@ def resize_with_aspect_ratio(image, max_size):
     max_width, max_height = max_size
     aspect_ratio = original_width / original_height
 
-    # Calculate new dimensions while preserving aspect ratio
     if original_width > original_height:
-        # Width is the limiting factor
         new_width = min(original_width, max_width)
         new_height = int(new_width / aspect_ratio)
     else:
-        # Height is the limiting factor
         new_height = min(original_height, max_height)
         new_width = int(new_height * aspect_ratio)
 
-    # Ensure dimensions don't exceed max_size
     if new_width > max_width:
         new_width = max_width
         new_height = int(new_width / aspect_ratio)
@@ -179,120 +154,116 @@ def resize_with_aspect_ratio(image, max_size):
 
 # Function to make the logo white while preserving transparency
 def make_logo_white(logo):
-    # Convert logo to RGBA if not already
     logo = logo.convert("RGBA")
-    
-    # Split into R, G, B, A channels
     r, g, b, a = logo.split()
-    
-    # Convert to grayscale to get intensity (ignoring color)
     grayscale = logo.convert("L")
-    
-    # Create a white image of the same size
     white_image = Image.new("RGB", logo.size, (255, 255, 255))
-    
-    # Convert white image to RGBA
     white_image = white_image.convert("RGBA")
-    
-    # Split white image into channels
     wr, wg, wb, _ = white_image.split()
-    
-    # Use the grayscale image as the alpha channel to blend white with transparency
     white_logo = Image.merge("RGBA", (wr, wg, wb, grayscale))
-    
-    # Combine with the original alpha channel to preserve transparency
     final_r, final_g, final_b, _ = white_logo.split()
     final_logo = Image.merge("RGBA", (final_r, final_g, final_b, a))
-    
     return final_logo
 
+# Function to convert date to Bengali
+def convert_to_bengali_date(pub_date):
+    bengali_digits = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
+    bengali_months = {
+        "January": "জানুয়ারি", "February": "ফেব্রুয়ারি", "March": "মার্চ",
+        "April": "এপ্রিল", "May": "মে", "June": "জুন",
+        "July": "জুলাই", "August": "আগস্ট", "September": "সেপ্টেম্বর",
+        "October": "অক্টোবর", "November": "নভেম্বর", "December": "ডিসেম্বর"
+    }
+    date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
+    day, month, year = date_str.split()
+    day_bengali = day.translate(bengali_digits)
+    year_bengali = year.translate(bengali_digits)
+    month_bengali = bengali_months.get(month, month)
+    return f"{day_bengali} {month_bengali} {year_bengali}"
+
 # Function to create the news card
-def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", output_path="photo_card.png"):
+def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
     try:
-        # Validate BRICK_RED color
-        canvas_color = BRICK_RED if BRICK_RED else "#000000"  # Fallback to black if empty
-
-        # Create a blank canvas with error handling
-        try:
-            canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
-        except ValueError as e:
-            raise Exception(f"Invalid canvas color '{canvas_color}': {str(e)}")
-
+        canvas_color = BRICK_RED if BRICK_RED else "#000000"
+        canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
         draw = ImageDraw.Draw(canvas)
 
         # Load fonts
-        bangla_font_small, bangla_font_large, regular_font, bold_font = load_fonts()
+        bangla_font_small, bangla_font_large, regular_font = load_fonts()
 
-        # Add the date (top center, no background, white text, bold)
-        date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
-        draw.text((DATE_POSITION[0] + 40, DATE_POSITION[1] + 15), date_str, fill="white", font=bold_font)
-
-        # Download, crop, and add the news image
-        image_y = DATE_POSITION[1] + DATE_BOX_SIZE[1] + DATE_GAP
+        # Add the news image (top, full width, 660 px height)
         if image_url:
             news_image = download_image(image_url)
             news_image = news_image.resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
-            canvas.paste(news_image, IMAGE_POSITION)
+            canvas.paste(news_image, (0, 0))
         else:
-            draw.rectangle((IMAGE_POSITION[0], image_y, 
-                           IMAGE_POSITION[0] + IMAGE_SIZE[0], image_y + IMAGE_SIZE[1]), fill="gray")
-            draw.text((400, image_y + 300), "No Image Available", fill="white", font=regular_font)
+            draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
+            draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-        # Add a mustard yellow border around the image
-        draw.rectangle((IMAGE_POSITION[0], image_y, 
-                       IMAGE_POSITION[0] + IMAGE_SIZE[0], image_y + IMAGE_SIZE[1]), outline=MUSTARD_YELLOW, width=5)
+        # Add the logo (50 px from top, 40 px from right)
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            logo = make_logo_white(logo)
+            logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
+            logo_width, logo_height = logo.size
+            canvas.paste(logo, LOGO_POSITION, logo)
+        except FileNotFoundError:
+            draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
 
-        # Add the headline (below the image, centered)
+        # Draw the source text background box (white background)
+        draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), 
+                      fill="white")
+
+        # Add the source text on top of the box (black text)
+        source_text = f"Source: {main_domain}"
+        text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_height = text_bbox[3] - text_bbox[1]
+        text_x = (CANVAS_SIZE[0] - text_width) // 2  # Center the source text
+        text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2
+        draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
+
+        # Draw the mustard yellow divider
+        draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), 
+                      fill=MUSTARD_YELLOW)
+
+        # Add the headline (below the divider, with padding)
         if "not found" in headline.lower():
             headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
         headline = headline.encode('utf-8').decode('utf-8')
-        wrapped_text = textwrap.wrap(headline, width=40)
+        wrapped_text = textwrap.wrap(headline, width=38)  # Adjusted width to fit 960 px
         headline_y = HEADLINE_Y_START
         if not wrapped_text:
             draw.text((CANVAS_SIZE[0] // 2, headline_y), "Headline Missing", fill="white", font=regular_font, anchor="mm")
         for line in wrapped_text:
             text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
             text_width = text_bbox[2] - text_bbox[0]
-            text_x = (CANVAS_SIZE[0] - text_width) // 2
+            text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2  # Center within padded area
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Calculate the bottom of the headline and add padding
-        num_lines = len(wrapped_text) if wrapped_text else 1
-        headline_bottom = HEADLINE_Y_START + (num_lines * HEADLINE_LINE_SPACING)
-        divider_y = headline_bottom + HEADLINE_BOTTOM_PADDING
+        # Add the date and source area at y=930 (date in Bengali)
+        date_str = convert_to_bengali_date(pub_date)
+        draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
 
-        # Draw the mustard yellow divider between brick_red and navy_blue sections
-        draw.rectangle((0, divider_y, CANVAS_SIZE[0], divider_y + DIVIDER_THICKNESS), fill=MUSTARD_YELLOW)
-
-        # Draw the complementary color section (navy_blue) from just below the divider to canvas bottom
-        navy_blue_start_y = divider_y + DIVIDER_THICKNESS
-        draw.rectangle((0, navy_blue_start_y, CANVAS_SIZE[0], CANVAS_SIZE[1]), fill=NAVY_BLUE)
-
-        # Position the logo and source in the navy_blue section with updated top padding
-        logo_source_y = divider_y + LOGO_SOURCE_TOP_PADDING
-
-        # Add the logo (bottom left in navy_blue section) with aspect ratio preserved and make it white
-        try:
-            logo = Image.open(logo_path).convert("RGBA")
-            # Make the logo white while preserving transparency
-            logo = make_logo_white(logo)
-            logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
-            # Center the logo vertically within the max height space
-            logo_width, logo_height = logo.size
-            logo_y = logo_source_y + (LOGO_MAX_SIZE[1] - logo_height) // 2
-            canvas.paste(logo, (PADDING, logo_y), logo)
-        except FileNotFoundError:
-            draw.text((PADDING, logo_source_y), "Logo Missing", fill="red", font=regular_font)
-
-        # Add the source (bottom right in navy_blue section), adjust x to ensure right padding
-        source_text = f"Source: {main_domain}"
-        text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
+        comment_text = "বিস্তারিত কমেন্টে"
+        text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
         text_width = text_bbox[2] - text_bbox[0]
-        # Right edge should be at x=1020 (1080 - 60 padding)
-        text_x = (CANVAS_SIZE[0] - PADDING) - text_width
-        source_y = logo_source_y + (LOGO_MAX_SIZE[1] - (text_bbox[3] - text_bbox[1])) // 2  # Align vertically with logo
-        draw.text((text_x, source_y), source_text, fill="white", font=regular_font)
+        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned
+        draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
+
+        # Add the ad area at y=990 (black background, white text, centered)
+        if ad_path:
+            try:
+                ad_image = Image.open(ad_path)
+                ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
+                canvas.paste(ad_image, (0, AD_AREA_Y))
+            except FileNotFoundError:
+                draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
+                draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Image Missing", fill="white", font=regular_font, anchor="mm")
+        else:
+            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
+            draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Placeholder", fill="white", font=regular_font, anchor="mm")
 
         # Save the photo card
         canvas.save(output_path)
@@ -318,6 +289,15 @@ if uploaded_logo:
         f.write(uploaded_logo.getbuffer())
     st.success("Custom logo uploaded successfully!")
 
+# Ad image upload
+uploaded_ad = st.file_uploader("Upload an ad image (optional):", type=["png", "jpg", "jpeg"])
+ad_path = None
+if uploaded_ad:
+    ad_path = "custom_ad.png"
+    with open(ad_path, "wb") as f:
+        f.write(uploaded_ad.getbuffer())
+    st.success("Ad image uploaded successfully!")
+
 # Generate button
 if st.button("Generate Photo Card"):
     if not url:
@@ -326,7 +306,7 @@ if st.button("Generate Photo Card"):
         with st.spinner("Generating photo card..."):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
-                output_path = create_photo_card(headline, image_url, pub_date, main_domain, logo_path=logo_path)
+                output_path = create_photo_card(headline, image_url, pub_date, main_domain, logo_path=logo_path, ad_path=ad_path)
                 st.image(output_path, caption="Generated Photo Card")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
