@@ -1,1 +1,3 @@
-fonts-noto
+libfreetype6-dev
+libharfbuzz-dev
+libfribidi-dev
