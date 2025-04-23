@@ -13,16 +13,16 @@ from urllib.parse import urlparse
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Background color
 IMAGE_SIZE = (1080, 660)  # Image area from top
-SOURCE_BOX_HEIGHT = 50  # Increased from 40 to 50 px
+SOURCE_BOX_HEIGHT = 50
 SOURCE_BOX_Y = 620  # Position of source text background box
-DIVIDER_Y = 670  # Adjusted: 620 + 50 (source box height)
+DIVIDER_Y = 670  # 620 + 50 (source box height)
 DIVIDER_THICKNESS = 5  # Thickness of the divider
 MUSTARD_YELLOW = "#FFB300"  # Divider color
-HEADLINE_Y_START = 710  # Adjusted: 670 (divider) + 40 (top padding)
-HEADLINE_WIDTH = 960  # Changed from 1000 to 960 px
+HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
+HEADLINE_WIDTH = 980  # 1080 - 50 (left padding) - 50 (right padding)
 HEADLINE_LINE_SPACING = 60
 DATE_SOURCE_Y = 930  # Date and source text position
-PADDING = 40  # Padding for left, right, and top
+PADDING = 50  # Padding for left, right, and top
 BOTTOM_PADDING = 20  # Bottom padding for date/source area
 AD_AREA_Y = 990  # Ad area position
 AD_AREA_SIZE = (1080, 90)  # Ad area dimensions
@@ -110,9 +110,9 @@ def download_image(image_url):
 def load_fonts():
     bangla_font_small = bangla_font_large = regular_font = None
 
-    # Load Bangla font for headline (NotoSerifBengali-Bold.ttf)
+    # Load Bangla font for headline (NotoSerifBengali-Bold.ttf, reduced size)
     try:
-        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 50)
+        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 45)
     except IOError:
         bangla_font_large = ImageFont.load_default()
 
@@ -122,9 +122,9 @@ def load_fonts():
     except IOError:
         bangla_font_small = ImageFont.load_default()
 
-    # Load regular font for source text (NotoSerifBengali-Regular.ttf, reduced size)
+    # Load regular font for source text (NotoSerifBengali-Regular.ttf)
     try:
-        regular_font = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)  # Reduced from 30 to 24
+        regular_font = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)
     except IOError:
         regular_font = ImageFont.load_default()
 
@@ -214,13 +214,13 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), 
                       fill="white")
 
-        # Add the source text on top of the box (black text)
+        # Add the source text on top of the box (black text, slightly upper)
         source_text = f"Source: {main_domain}"
         text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         text_x = (CANVAS_SIZE[0] - text_width) // 2  # Center the source text
-        text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2
+        text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5  # Shift 5 px above center
         draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
 
         # Draw the mustard yellow divider
@@ -229,9 +229,9 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
 
         # Add the headline (below the divider, with padding)
         if "not found" in headline.lower():
-            headline = "পরিবারে অশান্তি বিশ্ববিদ্যালয়ের পড়াশোনা হত্যার গ্রেপ্তার"
+            headline = "কোন শিরোনাম পাওয়া যায়নি"
         headline = headline.encode('utf-8').decode('utf-8')
-        wrapped_text = textwrap.wrap(headline, width=38)  # Adjusted width to fit 960 px
+        wrapped_text = textwrap.wrap(headline, width=40)  # Adjusted for new font size
         headline_y = HEADLINE_Y_START
         if not wrapped_text:
             draw.text((CANVAS_SIZE[0] // 2, headline_y), "Headline Missing", fill="white", font=regular_font, anchor="mm")
@@ -242,14 +242,14 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Add the date and source area at y=930 (date in Bengali)
+        # Add the date and source area at y=930 (date in Bengali, updated padding)
         date_str = convert_to_bengali_date(pub_date)
         draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
 
         comment_text = "বিস্তারিত কমেন্টে"
         text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
         text_width = text_bbox[2] - text_bbox[0]
-        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned
+        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned with 50 px padding
         draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
 
         # Add the ad area at y=990 (black background, white text, centered)
@@ -274,11 +274,29 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
 # Streamlit app
 st.title("Automated News Photo Card Generator")
 
+# Initialize session state for URL tracking
+if 'previous_url' not in st.session_state:
+    st.session_state.previous_url = ""
+if 'headline_key' not in st.session_state:
+    st.session_state.headline_key = 0
+
 # URL input with validation
 url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
 if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
+
+# Reset custom headline if URL changes
+if url != st.session_state.previous_url and url is not None:
+    st.session_state.headline_key += 1  # Increment key to reset the text input
+    st.session_state.previous_url = url
+
+# Headline input (editable, reset on URL change)
+custom_headline = st.text_input(
+    "Enter a custom headline (optional, in Bengali):",
+    placeholder="কোন শিরোনাম পাওয়া যায়নি",
+    key=f"headline_input_{st.session_state.headline_key}"
+)
 
 # Logo upload
 uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG with transparency recommended):", type=["png", "jpg", "jpeg"])
@@ -306,7 +324,9 @@ if st.button("Generate Photo Card"):
         with st.spinner("Generating photo card..."):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
-                output_path = create_photo_card(headline, image_url, pub_date, main_domain, logo_path=logo_path, ad_path=ad_path)
+                # Use custom headline if provided, otherwise use extracted or default
+                final_headline = custom_headline if custom_headline else headline
+                output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, logo_path=logo_path, ad_path=ad_path)
                 st.image(output_path, caption="Generated Photo Card")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
