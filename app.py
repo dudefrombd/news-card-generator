@@ -180,11 +180,7 @@ def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.pn
 
         # Add the news image (top, full width, 660 px height)
         if image:
-            # Resize the image based on its original dimensions, respecting max size
-            resized_image = resize_with_aspect_ratio(image, (image.width, image.height))
-            # If user-provided dimensions exceed canvas, cap at canvas size
-            if resized_image.width > IMAGE_SIZE[0] or resized_image.height > IMAGE_SIZE[1]:
-                resized_image = resize_with_aspect_ratio(image, IMAGE_SIZE)
+            resized_image = resize_with_aspect_ratio(image, IMAGE_SIZE)
             canvas.paste(resized_image, (0, 0))
         else:
             draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
@@ -287,18 +283,12 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}"
 )
 
-# Image upload and resize
+# Image upload
 uploaded_image = st.file_uploader("Upload a custom image (optional):", type=["png", "jpg", "jpeg"])
-custom_width = st.number_input("Image width (optional, max 1080):", min_value=1, max_value=1080, value=1080, step=10)
-custom_height = st.number_input("Image height (optional, max 660):", min_value=1, max_value=660, value=660, step=10)
 image = None
 if uploaded_image:
     image = Image.open(uploaded_image)
-    # Cap dimensions to canvas size if exceeded
-    if custom_width > 1080 or custom_height > 660:
-        custom_width = min(custom_width, 1080)
-        custom_height = min(custom_height, 660)
-    image = resize_with_aspect_ratio(image, (custom_width, custom_height))
+    image = resize_with_aspect_ratio(image, IMAGE_SIZE)
 
 # Logo upload
 uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG with transparency recommended):", type=["png", "jpg", "jpeg"])
