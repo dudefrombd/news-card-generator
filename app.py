@@ -17,7 +17,7 @@ SOURCE_BOX_HEIGHT = 50
 SOURCE_BOX_Y = 620  # Position of source text background box
 DIVIDER_Y = 670  # 620 + 50 (source box height)
 DIVIDER_THICKNESS = 5  # Thickness of the divider
-MUSTARD_YELLOW = "#FFB300"  # Divider color
+MUSTARD_YELLOW = "#fed500"  # Divider color
 HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
 HEADLINE_WIDTH = 980  # 1080 - 50 (left padding) - 50 (right padding)
 HEADLINE_LINE_SPACING = 60
@@ -152,19 +152,6 @@ def resize_with_aspect_ratio(image, max_size):
 
     return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-# Function to make the logo white while preserving transparency
-def make_logo_white(logo):
-    logo = logo.convert("RGBA")
-    r, g, b, a = logo.split()
-    grayscale = logo.convert("L")
-    white_image = Image.new("RGB", logo.size, (255, 255, 255))
-    white_image = white_image.convert("RGBA")
-    wr, wg, wb, _ = white_image.split()
-    white_logo = Image.merge("RGBA", (wr, wg, wb, grayscale))
-    final_r, final_g, final_b, _ = white_logo.split()
-    final_logo = Image.merge("RGBA", (final_r, final_g, final_b, a))
-    return final_logo
-
 # Function to convert date to Bengali
 def convert_to_bengali_date(pub_date):
     bengali_digits = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
@@ -203,7 +190,6 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         # Add the logo (50 px from top, 40 px from right)
         try:
             logo = Image.open(logo_path).convert("RGBA")
-            logo = make_logo_white(logo)
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
             logo_width, logo_height = logo.size
             canvas.paste(logo, LOGO_POSITION, logo)
