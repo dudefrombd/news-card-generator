@@ -122,11 +122,24 @@ def load_fonts():
 
     return bangla_font_small, bangla_font_large, regular_font
 
-# Function to resize image based on user-specified height while preserving aspect ratio
-def resize_with_aspect_ratio(image, target_height, max_width=1080):
+# Function to crop and resize image while preserving aspect ratio
+def resize_with_aspect_ratio(image, crop_top, crop_bottom, max_width=1080):
     original_width, original_height = image.size
-    aspect_ratio = original_width / original_height
-    new_height = min(target_height, 1080)  # Cap height at canvas height
+    
+    # Crop the image vertically
+    if crop_top + crop_bottom >= original_height:
+        crop_top = 0
+        crop_bottom = 0  # Prevent cropping more than the image height
+    new_height = original_height - crop_top - crop_bottom
+    if new_height <= 0:
+        new_height = original_height  # Fallback to original height if invalid cropping
+        crop_top = 0
+        crop_bottom = 0
+    box = (0, crop_top, original_width, original_height - crop_bottom)
+    image = image.crop(box)
+
+    # Resize while preserving aspect ratio
+    aspect_ratio = original_width / new_height
     new_width = int(new_height * aspect_ratio)
     if new_width > max_width:
         new_width = max_width
@@ -150,7 +163,7 @@ def convert_to_bengali_date(pub_date):
     return f"{day_bengali} {month_bengali} {year_bengali}"
 
 # Function to create the news card
-def create_photo_card(headline, image, pub_date, main_domain, target_height, logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
+def create_photo_card(headline, image, pub_date, main_domain, crop_top, crop_bottom, logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
     try:
         canvas_color = BRICK_RED if BRICK_RED else "#000000"
         canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
@@ -159,9 +172,9 @@ def create_photo_card(headline, image, pub_date, main_domain, target_height, log
         # Load fonts
         bangla_font_small, bangla_font_large, regular_font = load_fonts()
 
-        # Add the news image (top, full width, user-specified height)
+        # Add the news image (top, full width, cropped and resized)
         if image:
-            news_image = resize_with_aspect_ratio(image, target_height)
+            news_image = resize_with_aspect_ratio(image, crop_top, crop_bottom)
             canvas.paste(news_image, (0, 0))
         else:
             draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
@@ -170,7 +183,7 @@ def create_photo_card(headline, image, pub_date, main_domain, target_height, log
         # Add the logo (50 px from top, 40 px from right)
         try:
             logo = Image.open(logo_path).convert("RGBA")
-            logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE[1])  # Use height as reference for logo
+            logo = resize_with_aspect_ratio(logo, 0, 0)  # No cropping for logo, just resize
             logo_width, logo_height = logo.size
             canvas.paste(logo, LOGO_POSITION, logo)
         except FileNotFoundError:
@@ -264,9 +277,10 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}"
 )
 
-# Image upload and height adjustment
+# Image upload and cropping options
 uploaded_image = st.file_uploader("Upload a custom image (optional):", type=["png", "jpg", "jpeg"])
-image_height = st.number_input("Image height (optional, max 1080):", min_value=1, max_value=1080, value=660, step=10)
+crop_top = st.number_input("Crop from top (pixels):", min_value=0, value=0, step=10)
+crop_bottom = st.number_input("Crop from bottom (pixels):", min_value=0, value=0, step=10)
 image = None
 if uploaded_image:
     image = Image.open(uploaded_image)
@@ -300,7 +314,7 @@ if st.button("Generate Photo Card"):
                 if not image and url:
                     image = download_image(image_url) if image_url else None
                 final_headline = custom_headline if custom_headline else headline
-                output_path = create_photo_card(final_headline, image, pub_date, main_domain, image_height, logo_path=logo_path, ad_path=ad_path)
+                output_path = create_photo_card(final_headline, image, pub_date, main_domain, crop_top, crop_bottom, logo_path=logo_path, ad_path=ad_path)
                 st.image(output_path, caption="Generated Photo Card")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
