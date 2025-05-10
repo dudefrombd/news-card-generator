@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"  # Background color
-IMAGE_SIZE = (1080, 660)  # Default image area from top
+IMAGE_SIZE = (1080, 660)  # Image area from top
 SOURCE_BOX_HEIGHT = 50
 SOURCE_BOX_Y = 620  # Position of source text background box
 DIVIDER_Y = 670  # 620 + 50 (source box height)
@@ -152,6 +152,19 @@ def resize_with_aspect_ratio(image, max_size):
 
     return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
+# Function to make the logo white while preserving transparency
+def make_logo_white(logo):
+    logo = logo.convert("RGBA")
+    r, g, b, a = logo.split()
+    grayscale = logo.convert("L")
+    white_image = Image.new("RGB", logo.size, (255, 255, 255))
+    white_image = white_image.convert("RGBA")
+    wr, wg, wb, _ = white_image.split()
+    white_logo = Image.merge("RGBA", (wr, wg, wb, grayscale))
+    final_r, final_g, final_b, _ = white_logo.split()
+    final_logo = Image.merge("RGBA", (final_r, final_g, final_b, a))
+    return final_logo
+
 # Function to convert date to Bengali
 def convert_to_bengali_date(pub_date):
     bengali_digits = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
@@ -169,7 +182,7 @@ def convert_to_bengali_date(pub_date):
     return f"{day_bengali} {month_bengali} {year_bengali}"
 
 # Function to create the news card
-def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
+def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
     try:
         canvas_color = BRICK_RED if BRICK_RED else "#000000"
         canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
@@ -179,9 +192,10 @@ def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.pn
         bangla_font_small, bangla_font_large, regular_font = load_fonts()
 
         # Add the news image (top, full width, 660 px height)
-        if image:
-            resized_image = resize_with_aspect_ratio(image, IMAGE_SIZE)
-            canvas.paste(resized_image, (0, 0))
+        if image_url:
+            news_image = download_image(image_url)
+            news_image = news_image.resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
+            canvas.paste(news_image, (0, 0))
         else:
             draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
             draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
@@ -189,6 +203,7 @@ def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.pn
         # Add the logo (50 px from top, 40 px from right)
         try:
             logo = Image.open(logo_path).convert("RGBA")
+            logo = make_logo_white(logo)
             logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
             logo_width, logo_height = logo.size
             canvas.paste(logo, LOGO_POSITION, logo)
@@ -216,7 +231,7 @@ def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.pn
         if "not found" in headline.lower():
             headline = "কোন শিরোনাম পাওয়া যায়নি"
         headline = headline.encode('utf-8').decode('utf-8')
-        wrapped_text = textwrap.wrap(headline, width=40)
+        wrapped_text = textwrap.wrap(headline, width=40)  # Adjusted for new font size
         headline_y = HEADLINE_Y_START
         if not wrapped_text:
             draw.text((CANVAS_SIZE[0] // 2, headline_y), "Headline Missing", fill="white", font=regular_font, anchor="mm")
@@ -227,14 +242,14 @@ def create_photo_card(headline, image, pub_date, main_domain, logo_path="logo.pn
             draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
             headline_y += HEADLINE_LINE_SPACING
 
-        # Add the date and source area at y=930 (date in Bengali)
+        # Add the date and source area at y=930 (date in Bengali, updated padding)
         date_str = convert_to_bengali_date(pub_date)
         draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
 
         comment_text = "বিস্তারিত কমেন্টে"
         text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
         text_width = text_bbox[2] - text_bbox[0]
-        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned
+        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned with 50 px padding
         draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
 
         # Add the ad area at y=990 (black background, white text, centered)
@@ -283,13 +298,6 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}"
 )
 
-# Image upload
-uploaded_image = st.file_uploader("Upload a custom image (optional):", type=["png", "jpg", "jpeg"])
-image = None
-if uploaded_image:
-    image = Image.open(uploaded_image)
-    image = resize_with_aspect_ratio(image, IMAGE_SIZE)
-
 # Logo upload
 uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG with transparency recommended):", type=["png", "jpg", "jpeg"])
 logo_path = "logo.png"
@@ -310,16 +318,15 @@ if uploaded_ad:
 
 # Generate button
 if st.button("Generate Photo Card"):
-    if not url and not uploaded_image:
-        st.warning("Please enter a valid URL or upload an image.")
+    if not url:
+        st.warning("Please enter a valid URL.")
     else:
         with st.spinner("Generating photo card..."):
             try:
-                pub_date, headline, image_url, source, main_domain = extract_news_data(url) if url else (None, None, None, None, None)
-                if not image and url:
-                    image = download_image(image_url) if image_url else None
+                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+                # Use custom headline if provided, otherwise use extracted or default
                 final_headline = custom_headline if custom_headline else headline
-                output_path = create_photo_card(final_headline, image, pub_date, main_domain, logo_path=logo_path, ad_path=ad_path)
+                output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, logo_path=logo_path, ad_path=ad_path)
                 st.image(output_path, caption="Generated Photo Card")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
