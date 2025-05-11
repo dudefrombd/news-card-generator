@@ -20,7 +20,7 @@ DIVIDER_THICKNESS = 5  # Thickness of the divider
 MUSTARD_YELLOW = "#fed500"  # Divider color
 HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
 HEADLINE_WIDTH = 980  # 1080 - 50 (left padding) - 50 (right padding)
-HEADLINE_LINE_SPACING = 80  # Increased for larger text
+HEADLINE_LINE_SPACING = 80  # Spacing for larger text
 DATE_SOURCE_Y = 930  # Date and source text position
 PADDING = 50  # Padding for left, right, and top
 BOTTOM_PADDING = 20  # Bottom padding for date/source area
@@ -217,16 +217,21 @@ def create_photo_card(headline, image_url, pub_date, main_domain, logo_path="log
         if "not found" in headline.lower():
             headline = "কোন শিরোনাম পাওয়া যায়নি"
         headline = headline.encode('utf-8').decode('utf-8')
-        wrapped_text = textwrap.wrap(headline, width=40)  # Adjusted for new font size
+        wrapped_text = textwrap.wrap(headline, width=50)  # Increased width for larger font
         headline_y = HEADLINE_Y_START
+        max_y = DATE_SOURCE_Y - 50  # Leave 50 px buffer above date area
         if not wrapped_text:
             draw.text((CANVAS_SIZE[0] // 2, headline_y), "Headline Missing", fill="white", font=regular_font, anchor="mm")
-        for line in wrapped_text:
-            text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2  # Center within padded area
-            draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
-            headline_y += HEADLINE_LINE_SPACING
+        else:
+            for line in wrapped_text:
+                text_bbox = draw.textbbox((0, 0), line, font=bangla_font_large)
+                text_width = text_bbox[2] - text_bbox[0]
+                text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2  # Center within padded area
+                if headline_y + text_bbox[3] < max_y:  # Check if next line fits
+                    draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
+                    headline_y += HEADLINE_LINE_SPACING
+                else:
+                    break  # Stop if nearing the date area
 
         # Add the date and source area at y=930 (date in Bengali, updated padding)
         date_str = convert_to_bengali_date(pub_date)
