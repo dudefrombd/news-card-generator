@@ -112,7 +112,7 @@ def load_fonts():
 
     # Load Bangla font for headline (NotoSerifBengali-Bold.ttf, reduced size)
     try:
-        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 45)
+        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 60)
     except IOError:
         bangla_font_large = ImageFont.load_default()
 
