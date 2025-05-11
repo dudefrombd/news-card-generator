@@ -20,7 +20,7 @@ DIVIDER_THICKNESS = 5  # Thickness of the divider
 MUSTARD_YELLOW = "#fed500"  # Divider color
 HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
 HEADLINE_WIDTH = 980  # 1080 - 50 (left padding) - 50 (right padding)
-HEADLINE_LINE_SPACING = 60
+HEADLINE_LINE_SPACING = 80  # Increased for larger text
 DATE_SOURCE_Y = 930  # Date and source text position
 PADDING = 50  # Padding for left, right, and top
 BOTTOM_PADDING = 20  # Bottom padding for date/source area
@@ -110,9 +110,9 @@ def download_image(image_url):
 def load_fonts():
     bangla_font_small = bangla_font_large = regular_font = None
 
-    # Load Bangla font for headline (NotoSerifBengali-Bold.ttf, reduced size)
+    # Load Bangla font for headline (NotoSerifBengali-Bold.ttf, increased size)
     try:
-        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 52)
+        bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 60)
     except IOError:
         bangla_font_large = ImageFont.load_default()
 
