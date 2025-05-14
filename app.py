@@ -56,10 +56,16 @@ def extract_main_domain(url):
 
 # Function to extract news details from the URL
 def extract_news_data(url):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/'
+    }
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
+        session = requests.Session()
+        response = session.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
         soup = BeautifulSoup(response.text, 'html.parser')
 
         date_tag = soup.find('meta', {'property': 'article:published_time'})
@@ -83,6 +89,9 @@ def extract_news_data(url):
         main_domain = extract_main_domain(url)
 
         return pub_date, headline, image_url, source, main_domain
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP Error: {e.response.status_code} - {e.response.text}")
+        raise Exception(f"Failed to extract news data: {str(e)}")
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
