@@ -7,7 +7,8 @@ import datetime
 import textwrap
 import re
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
+import time
 
 # Constants for layout and styling
 CANVAS_SIZE = (1080, 1080)
@@ -54,38 +55,58 @@ def extract_main_domain(url):
     except Exception:
         return "Unknown"
 
-# Function to extract news details from the URL
+# Function to extract news details from the URL with retries
 def extract_news_data(url):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/',
+        'Connection': 'keep-alive'
+    }
+    for attempt in range(3):
+        try:
+            # Normalize and encode the URL to handle special characters
+            encoded_url = quote(url, safe='/:?=&')
+            print(f"Attempt {attempt + 1}: Requesting {encoded_url}")  # Debug log
+            response = requests.get(encoded_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
 
-        date_tag = soup.find('meta', {'property': 'article:published_time'})
-        date_str = date_tag['content'] if date_tag else None
-        pub_date = None
-        if date_str:
-            try:
-                pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            except ValueError:
-                pub_date = None
+            date_tag = soup.find('meta', {'property': 'article:published_time'})
+            date_str = date_tag['content'] if date_tag else None
+            pub_date = None
+            if date_str:
+                try:
+                    pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                except ValueError:
+                    pub_date = None
 
-        headline_tag = soup.find('meta', {'property': 'og:title'})
-        headline = headline_tag['content'] if headline_tag else 'Headline not found'
+            headline_tag = soup.find('meta', {'property': 'og:title'})
+            headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
-        image_tag = soup.find('meta', {'property': 'og:image'})
-        image_url = image_tag['content'] if image_tag else None
+            image_tag = soup.find('meta', {'property': 'og:image'})
+            image_url = image_tag['content'] if image_tag else None
 
-        source_tag = soup.find('meta', {'property': 'og:site_name'})
-        source = source_tag['content'] if source_tag else 'Source not found'
+            source_tag = soup.find('meta', {'property': 'og:site_name'})
+            source = source_tag['content'] if source_tag else 'Source not found'
 
-        main_domain = extract_main_domain(url)
-
-        return pub_date, headline, image_url, source, main_domain
-    except Exception as e:
-        raise Exception(f"Failed to extract news data: {str(e)}")
-
+            main_domain = extract_main_domain(url)
+            print(f"Successfully extracted data from {url}")  # Debug log
+            return pub_date, headline, image_url, source, main_domain
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP Error {e.response.status_code} on attempt {attempt + 1}: {e.response.text}")  # Debug log
+            if attempt < 2:
+                time.sleep(2)  # Wait 2 seconds before retrying
+            else:
+                raise
+        except Exception as e:
+            print(f"Error on attempt {attempt + 1}: {str(e)}")  # Debug log
+            if attempt < 2:
+                time.sleep(2)  # Wait 2 seconds before retrying
+            else:
+                raise
+    raise Exception(f"Failed to extract news data after 3 attempts: {str(e)}")
 
 # Function to download, crop, and load an image from a URL
 def download_image(image_url):
@@ -426,5 +447,3 @@ if st.button("Generate Photo Card"):
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-
-
