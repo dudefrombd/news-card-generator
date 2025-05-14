@@ -425,3 +425,13 @@ if st.button("Generate Photo Card"):
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+
+for attempt in range(3):
+    try:
+        response = requests.get(encoded_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        break
+    except requests.exceptions.RequestException as e:
+        if attempt == 2:
+            raise
+        time.sleep(2)  # Wait 2 seconds before retrying
