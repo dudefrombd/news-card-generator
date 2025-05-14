@@ -26,7 +26,7 @@ DATE_SOURCE_Y = 930
 AD_AREA_Y = 990
 AD_AREA_SIZE = (1080, 90)
 LOGO_MAX_SIZE = (225, 113)
-AD_LOGO_MAX_SIZE = (225, 90)  # Max size for logo in ad area
+AD_LOGO_MAX_SIZE = (225, 90)
 LOGO_POSITION = (1080 - 40 - 225, 50)
 
 # Validate URL
@@ -282,30 +282,13 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
             draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
             draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Image Missing", fill="white", font=regular_font, anchor="mm")
     else:
-        draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill=MUSTARD_YELLOW)
         try:
-            second_logo = Image.open(logo_path).convert("RGBA")
-            second_logo_width, second_logo_height = second_logo.size
-            aspect = second_logo_width / second_logo_height
-            # Fit within AD_LOGO_MAX_SIZE (225x90)
-            if second_logo_width > second_logo_height:
-                second_logo_width = min(second_logo_width, AD_LOGO_MAX_SIZE[0])
-                second_logo_height = int(second_logo_width / aspect)
-                if second_logo_height > AD_LOGO_MAX_SIZE[1]:
-                    second_logo_height = AD_LOGO_MAX_SIZE[1]
-                    second_logo_width = int(second_logo_height * aspect)
-            else:
-                second_logo_height = min(second_logo_height, AD_LOGO_MAX_SIZE[1])
-                second_logo_width = int(second_logo_height * aspect)
-                if second_logo_width > AD_LOGO_MAX_SIZE[0]:
-                    second_logo_width = AD_LOGO_MAX_SIZE[0]
-                    second_logo_height = int(second_logo_width / aspect)
-            second_logo = second_logo.resize((second_logo_width, second_logo_height), Image.Resampling.LANCZOS)
-            second_logo_x = (CANVAS_SIZE[0] - second_logo_width) // 2
-            second_logo_y = AD_AREA_Y + (AD_AREA_SIZE[1] - second_logo_height) // 2
-            canvas.paste(second_logo, (second_logo_x, second_logo_y), second_logo)
+            ad_image = Image.open("cp-ad.png")
+            ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
+            canvas.paste(ad_image, (0, AD_AREA_Y))
         except FileNotFoundError:
-            pass
+            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
+            draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Default Ad Image Missing", fill="white", font=regular_font, anchor="mm")
 
     canvas.save(output_path)
     return output_path
@@ -314,8 +297,6 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
 st.title("Automated News Photo Card Generator")
 
 # Initialize session state
-if 'url_key' not in st.session_state:
-    st.session_state.url_key = 0
 if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
 if 'language' not in st.session_state:
@@ -333,8 +314,8 @@ with col2:
         st.session_state.language = "English"
         st.session_state.headline_key += 1
 
-# URL input with reset on generate
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
+# URL input
+url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
 if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
@@ -377,9 +358,5 @@ if st.button("Generate Photo Card"):
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
-                # Reset URL input
-                st.session_state.url_key += 1
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-                # Reset URL input even on error
-                st.session_state.url_key += 1
