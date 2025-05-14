@@ -19,10 +19,10 @@ DIVIDER_Y = 670  # 620 + 50 (source box height)
 DIVIDER_THICKNESS = 5  # Thickness of the divider
 MUSTARD_YELLOW = "#fed500"  # Divider color
 HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
-HEADLINE_WIDTH = 980  # 1080 - 50 (left padding) - 50 (right padding)
+PADDING = 10  # Reduced padding to 10
+HEADLINE_WIDTH = 1060  # 1080 - 10 (left padding) - 10 (right padding)
 HEADLINE_MAX_HEIGHT = 220  # Max height from 710 to 930
 DATE_SOURCE_Y = 930  # Date and source text position
-PADDING = 50  # Padding for left, right, and top
 BOTTOM_PADDING = 20  # Bottom padding for date/source area
 AD_AREA_Y = 990  # Ad area position
 AD_AREA_SIZE = (1080, 90)  # Ad area dimensions
@@ -156,7 +156,7 @@ def load_fonts(language="Bengali", font_size=48):
         # Load English font for date and comment text using NotoSerifBengali-Regular.ttf
         try:
             font_path_regular = os.path.join(script_dir, "fonts", "NotoSerifBengali-Regular.ttf")
-            bangla_font_small = ImageFont.truetype(font_path_regular, 24)  # Changed from 30 to 24
+            bangla_font_small = ImageFont.truetype(font_path_regular, 24)
             print(f"English regular font loaded from: {font_path_regular}")
         except IOError as e:
             print(f"Failed to load English regular font: {e}")
@@ -174,7 +174,7 @@ def load_fonts(language="Bengali", font_size=48):
 
 # Function to adjust headline layout
 def adjust_headline(headline, language, draw, max_width, max_height, start_y):
-    font_sizes = [48, 44, 40, 36, 32]  # Possible font sizes to try
+    font_sizes = [72, 68, 64, 60, 56, 52, 48, 44, 40]  # Increased font sizes
     line_spacing_factor = 1.2  # Line spacing at 120% of font size
     best_font_size = font_sizes[0]
     best_lines = []
@@ -316,7 +316,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
         comment_text = "বিস্তারিত কমেন্টে" if language == "Bengali" else "More in comments"
         text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
         text_width = text_bbox[2] - text_bbox[0]
-        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned with 50 px padding
+        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned with updated padding
         draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
 
         # Add the ad area at y=990
