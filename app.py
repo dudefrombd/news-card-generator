@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 # Constants
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"
-IMAGE_SIZE = (1080, 660)  # Image area
+IMAGE_SIZE = (1080, 660)
 SOURCE_BOX_HEIGHT = 50
 SOURCE_BOX_Y = 620
 DIVIDER_Y = 670
@@ -20,12 +20,13 @@ DIVIDER_THICKNESS = 5
 MUSTARD_YELLOW = "#fed500"
 HEADLINE_Y_START = 710
 PADDING = 20
-HEADLINE_WIDTH = 1040  # 1080 - 20 - 20
+HEADLINE_WIDTH = 1040
 HEADLINE_MAX_HEIGHT = 220
 DATE_SOURCE_Y = 930
 AD_AREA_Y = 990
 AD_AREA_SIZE = (1080, 90)
 LOGO_MAX_SIZE = (225, 113)
+AD_LOGO_MAX_SIZE = (225, 90)  # Max size for logo in ad area
 LOGO_POSITION = (1080 - 40 - 225, 50)
 
 # Validate URL
@@ -103,19 +104,15 @@ def download_image(image_url):
         target_aspect = target_width / target_height
 
         if aspect_ratio > target_aspect:
-            # Image is wider than target, scale height to match and crop width
             new_height = target_height
             new_width = int(new_height * aspect_ratio)
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            # Center crop to target width
             left = (new_width - target_width) // 2
             image = image.crop((left, 0, left + target_width, target_height))
         else:
-            # Image is taller than target, scale width to match and crop height
             new_width = target_width
             new_height = int(new_width / aspect_ratio)
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            # Center crop to target height
             top = (new_height - target_height) // 2
             image = image.crop((0, top, target_width, top + target_height))
 
@@ -230,7 +227,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-    # Add logo
+    # Add top logo
     try:
         logo = Image.open(logo_path).convert("RGBA")
         logo_width, logo_height = logo.size
@@ -290,12 +287,19 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
             second_logo = Image.open(logo_path).convert("RGBA")
             second_logo_width, second_logo_height = second_logo.size
             aspect = second_logo_width / second_logo_height
+            # Fit within AD_LOGO_MAX_SIZE (225x90)
             if second_logo_width > second_logo_height:
-                second_logo_width = min(second_logo_width, AD_AREA_SIZE[0])
+                second_logo_width = min(second_logo_width, AD_LOGO_MAX_SIZE[0])
                 second_logo_height = int(second_logo_width / aspect)
+                if second_logo_height > AD_LOGO_MAX_SIZE[1]:
+                    second_logo_height = AD_LOGO_MAX_SIZE[1]
+                    second_logo_width = int(second_logo_height * aspect)
             else:
-                second_logo_height = min(second_logo_height, AD_AREA_SIZE[1])
+                second_logo_height = min(second_logo_height, AD_LOGO_MAX_SIZE[1])
                 second_logo_width = int(second_logo_height * aspect)
+                if second_logo_width > AD_LOGO_MAX_SIZE[0]:
+                    second_logo_width = AD_LOGO_MAX_SIZE[0]
+                    second_logo_height = int(second_logo_width / aspect)
             second_logo = second_logo.resize((second_logo_width, second_logo_height), Image.Resampling.LANCZOS)
             second_logo_x = (CANVAS_SIZE[0] - second_logo_width) // 2
             second_logo_y = AD_AREA_Y + (AD_AREA_SIZE[1] - second_logo_height) // 2
@@ -316,6 +320,8 @@ if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
+if 'current_url' not in st.session_state:
+    st.session_state.current_url = ""
 
 # Language selection
 st.markdown("**Select Language**")
@@ -329,11 +335,11 @@ with col2:
         st.session_state.language = "English"
         st.session_state.headline_key += 1
 
-# URL input with reset on generate
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
-if url and not is_valid_url(url):
+# URL input
+url_input = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
+if url_input and not is_valid_url(url_input):
     st.error("Please enter a valid URL (e.g., https://example.com).")
-    url = None
+    url_input = None
 
 # Headline input
 placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
@@ -362,20 +368,29 @@ if uploaded_ad:
 
 # Generate button
 if st.button("Generate Photo Card"):
-    if not url:
-        st.warning("Please enter a valid URL.")
+    # Store the URL for processing and immediately reset the input
+    st.session_state.current_url = url_input
+    st.session_state.url_key += 1  # Reset URL input immediately
+    st.experimental_rerun()  # Force rerun to update UI
+
+# Process the stored URL if it exists
+if st.session_state.current_url:
+    url = st.session_state.current_url
+    with st.spinner("Generating photo card..."):
+        try:
+            pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+            final_headline = custom_headline if custom_headline else headline
+            output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
+            st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
+            with open(output_path, "rb") as file:
+                st.download_button("Download Photo Card", file, file_name="photo_card.png")
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+        finally:
+            # Clear the stored URL after processing
+            st.session_state.current_url = ""
+else:
+    if url_input:
+        st.warning("Please press the 'Generate Photo Card' button to proceed.")
     else:
-        with st.spinner("Generating photo card..."):
-            try:
-                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
-                final_headline = custom_headline if custom_headline else headline
-                output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
-                st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
-                with open(output_path, "rb") as file:
-                    st.download_button("Download Photo Card", file, file_name="photo_card.png")
-                # Reset URL input
-                st.session_state.url_key += 1
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-                # Reset URL input even on error
-                st.session_state.url_key += 1
+        st.info("Enter a URL and press 'Generate Photo Card' to create a news card.")
