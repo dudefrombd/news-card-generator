@@ -7,39 +7,37 @@ import datetime
 import textwrap
 import re
 import os
-from urllib.parse import urlparse, quote
-import time
+from urllib.parse import urlparse
 
-# Constants for layout and styling
+# Constants
 CANVAS_SIZE = (1080, 1080)
-BRICK_RED = "#9E2A2F"  # Background color
-IMAGE_SIZE = (1080, 660)  # Image area from top
+BRICK_RED = "#9E2A2F"
+IMAGE_SIZE = (1080, 660)  # Image area
 SOURCE_BOX_HEIGHT = 50
-SOURCE_BOX_Y = 620  # Position of source text background box
-DIVIDER_Y = 670  # 620 + 50 (source box height)
-DIVIDER_THICKNESS = 5  # Thickness of the divider
-MUSTARD_YELLOW = "#fed500"  # Divider color
-HEADLINE_Y_START = 710  # 670 (divider) + 40 (top padding)
-PADDING = 20  # Increased from 10 to 20
-HEADLINE_WIDTH = 1040  # 1080 - 20 (left padding) - 20 (right padding)
-HEADLINE_MAX_HEIGHT = 220  # Max height from 710 to 930
-DATE_SOURCE_Y = 930  # Date and source text position
-BOTTOM_PADDING = 20  # Bottom padding for date/source area
-AD_AREA_Y = 990  # Ad area position
-AD_AREA_SIZE = (1080, 90)  # Ad area dimensions
-LOGO_MAX_SIZE = (225, 113)  # Max size of logo
-LOGO_POSITION = (1080 - 40 - 225, 50)  # 40 px from right, 50 px from top
+SOURCE_BOX_Y = 620
+DIVIDER_Y = 670
+DIVIDER_THICKNESS = 5
+MUSTARD_YELLOW = "#fed500"
+HEADLINE_Y_START = 710
+PADDING = 20
+HEADLINE_WIDTH = 1040  # 1080 - 20 - 20
+HEADLINE_MAX_HEIGHT = 220
+DATE_SOURCE_Y = 930
+AD_AREA_Y = 990
+AD_AREA_SIZE = (1080, 90)
+LOGO_MAX_SIZE = (225, 113)
+LOGO_POSITION = (1080 - 40 - 225, 50)
 
-# Function to validate URL
+# Validate URL
 def is_valid_url(url):
     regex = re.compile(
-        r'^(https?://)?'  # http:// or https://
-        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # domain
-        r'(/[^?\s]*)?$'  # optional path
+        r'^(https?://)?'
+        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'
+        r'(/[^?\s]*)?$'
     )
     return re.match(regex, url) is not None
 
-# Function to extract main domain from URL
+# Extract main domain from URL
 def extract_main_domain(url):
     try:
         parsed_url = urlparse(url)
@@ -47,68 +45,44 @@ def extract_main_domain(url):
         if domain.startswith("www."):
             domain = domain[4:]
         parts = domain.split(".")
-        if len(parts) >= 3:
-            common_suffixes = ["co", "org", "gov", "edu"]
-            if parts[-2] in common_suffixes:
-                return ".".join(parts[-3:])
+        if len(parts) >= 3 and parts[-2] in ["co", "org", "gov", "edu"]:
+            return ".".join(parts[-3:])
         return ".".join(parts[-2:])
     except Exception:
         return "Unknown"
 
-# Function to extract news details from the URL with retries
+# Extract news data
 def extract_news_data(url):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://www.google.com/',
-        'Connection': 'keep-alive'
-    }
-    for attempt in range(3):
-        try:
-            # Normalize and encode the URL to handle special characters
-            encoded_url = quote(url, safe='/:?=&')
-            print(f"Attempt {attempt + 1}: Requesting {encoded_url}")  # Debug log
-            response = requests.get(encoded_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-            date_tag = soup.find('meta', {'property': 'article:published_time'})
-            date_str = date_tag['content'] if date_tag else None
-            pub_date = None
-            if date_str:
-                try:
-                    pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                except ValueError:
-                    pub_date = None
+        date_tag = soup.find('meta', {'property': 'article:published_time'})
+        date_str = date_tag['content'] if date_tag else None
+        pub_date = None
+        if date_str:
+            try:
+                pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            except ValueError:
+                pub_date = None
 
-            headline_tag = soup.find('meta', {'property': 'og:title'})
-            headline = headline_tag['content'] if headline_tag else 'Headline not found'
+        headline_tag = soup.find('meta', {'property': 'og:title'})
+        headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
-            image_tag = soup.find('meta', {'property': 'og:image'})
-            image_url = image_tag['content'] if image_tag else None
+        image_tag = soup.find('meta', {'property': 'og:image'})
+        image_url = image_tag['content'] if image_tag else None
 
-            source_tag = soup.find('meta', {'property': 'og:site_name'})
-            source = source_tag['content'] if source_tag else 'Source not found'
+        source_tag = soup.find('meta', {'property': 'og:site_name'})
+        source = source_tag['content'] if source_tag else 'Source not found'
 
-            main_domain = extract_main_domain(url)
-            print(f"Successfully extracted data from {url}")  # Debug log
-            return pub_date, headline, image_url, source, main_domain
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP Error {e.response.status_code} on attempt {attempt + 1}: {e.response.text}")  # Debug log
-            if attempt < 2:
-                time.sleep(2)  # Wait 2 seconds before retrying
-            else:
-                raise
-        except Exception as e:
-            print(f"Error on attempt {attempt + 1}: {str(e)}")  # Debug log
-            if attempt < 2:
-                time.sleep(2)  # Wait 2 seconds before retrying
-            else:
-                raise
-    raise Exception(f"Failed to extract news data after 3 attempts: {str(e)}")
+        main_domain = extract_main_domain(url)
+        return pub_date, headline, image_url, source, main_domain
+    except Exception as e:
+        raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Function to download, crop, and load an image from a URL
+# Download and process image
 def download_image(image_url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
@@ -117,94 +91,83 @@ def download_image(image_url):
         image_data = BytesIO(response.content)
         image = Image.open(image_data)
 
-        # Crop the bottom 15% of the image
+        # Crop bottom 15%
         width, height = image.size
-        crop_height = int(height * 0.15)  # 15% of the height
+        crop_height = int(height * 0.15)
         new_height = height - crop_height
-        box = (0, 0, width, new_height)  # Crop from bottom
-        image = image.crop(box)
+        image = image.crop((0, 0, width, new_height))
+
+        # Resize to fill the image area while preserving aspect ratio
+        target_width, target_height = IMAGE_SIZE
+        aspect_ratio = width / new_height
+        target_aspect = target_width / target_height
+
+        if aspect_ratio > target_aspect:
+            # Image is wider than target, scale height to match and crop width
+            new_height = target_height
+            new_width = int(new_height * aspect_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            # Center crop to target width
+            left = (new_width - target_width) // 2
+            image = image.crop((left, 0, left + target_width, target_height))
+        else:
+            # Image is taller than target, scale width to match and crop height
+            new_width = target_width
+            new_height = int(new_width / aspect_ratio)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            # Center crop to target height
+            top = (new_height - target_height) // 2
+            image = image.crop((0, top, target_width, top + target_height))
 
         return image
     except Exception as e:
         raise Exception(f"Failed to download or crop image: {str(e)}")
 
-# Function to load fonts with fallbacks and error handling
+# Load fonts
 def load_fonts(language="Bengali", font_size=48):
-    bangla_font_small = bangla_font_large = regular_font = None
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    bangla_font_small = bangla_font_large = regular_font = None
 
     if language == "Bengali":
-        # Load Bangla font for headline
         try:
             font_path_bold = os.path.join(script_dir, "fonts", "NotoSerifBengali-Bold.ttf")
             bangla_font_large = ImageFont.truetype(font_path_bold, font_size)
-            print(f"Bold font loaded from: {font_path_bold}")
-            bbox = bangla_font_large.getbbox('ক')
-            text_size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
-            print(f"Font size for bangla_font_large: {text_size}")
-        except IOError as e:
-            print(f"Failed to load bold font: {e}")
+        except IOError:
             bangla_font_large = ImageFont.load_default()
 
-        # Load Bangla font for date and comment text
         try:
             font_path_regular = os.path.join(script_dir, "fonts", "NotoSerifBengali-Regular.ttf")
             bangla_font_small = ImageFont.truetype(font_path_regular, 30)
-            print(f"Regular font loaded from: {font_path_regular}")
-        except IOError as e:
-            print(f"Failed to load regular font: {e}")
-            bangla_font_small = ImageFont.load_default()
-
-        # Load regular font for source text
-        try:
             regular_font = ImageFont.truetype(font_path_regular, 24)
-            print(f"Regular font loaded for source from: {font_path_regular}")
-        except IOError as e:
-            print(f"Failed to load regular font: {e}")
-            regular_font = ImageFont.load_default()
+        except IOError:
+            bangla_font_small = regular_font = ImageFont.load_default()
     else:
-        # Load English font for headline using NotoSerifBengali-Bold.ttf
         try:
             font_path_bold = os.path.join(script_dir, "fonts", "NotoSerifBengali-Bold.ttf")
             bangla_font_large = ImageFont.truetype(font_path_bold, font_size)
-            print(f"English headline font loaded from: {font_path_bold}")
-            bbox = bangla_font_large.getbbox('A')
-            text_size = (bbox[2] - bbox[0], bbox[3] - bbox[1])
-            print(f"Font size for bangla_font_large: {text_size}")
-        except IOError as e:
-            print(f"Failed to load English headline font: {e}")
+        except IOError:
             bangla_font_large = ImageFont.load_default()
 
-        # Load English font for date and comment text using NotoSerifBengali-Regular.ttf
         try:
             font_path_regular = os.path.join(script_dir, "fonts", "NotoSerifBengali-Regular.ttf")
             bangla_font_small = ImageFont.truetype(font_path_regular, 24)
-            print(f"English regular font loaded from: {font_path_regular}")
-        except IOError as e:
-            print(f"Failed to load English regular font: {e}")
-            bangla_font_small = ImageFont.load_default()
-
-        # Load regular font for source text using NotoSerifBengali-Regular.ttf
-        try:
             regular_font = ImageFont.truetype(font_path_regular, 24)
-            print(f"English source font loaded from: {font_path_regular}")
-        except IOError as e:
-            print(f"Failed to load English source font: {e}")
-            regular_font = ImageFont.load_default()
+        except IOError:
+            bangla_font_small = regular_font = ImageFont.load_default()
 
     return bangla_font_small, bangla_font_large, regular_font
 
-# Function to adjust headline layout
+# Adjust headline layout
 def adjust_headline(headline, language, draw, max_width, max_height, start_y):
-    font_sizes = [72, 68, 64, 60, 56, 52, 48, 44, 40]  # Increased font sizes
-    line_spacing_factor = 1.2  # Line spacing at 120% of font size
+    font_sizes = [72, 68, 64, 60, 56, 52, 48, 44, 40]
+    line_spacing_factor = 1.2
     best_font_size = font_sizes[0]
     best_lines = []
     best_spacing = 0
 
     for size in font_sizes:
         bangla_font_small, bangla_font_large, _ = load_fonts(language, size)
-        wrapped_text = textwrap.wrap(headline, width=int(max_width / (size * 0.5)))  # Approx char width
+        wrapped_text = textwrap.wrap(headline, width=int(max_width / (size * 0.5)))
         total_height = 0
         lines = []
 
@@ -226,7 +189,6 @@ def adjust_headline(headline, language, draw, max_width, max_height, start_y):
             best_spacing = spacing
             break
 
-    # Use the best configuration
     bangla_font_small, bangla_font_large, _ = load_fonts(language, best_font_size)
     headline_y = start_y
     for line in best_lines:
@@ -238,29 +200,7 @@ def adjust_headline(headline, language, draw, max_width, max_height, start_y):
 
     return headline_y
 
-# Function to resize image while preserving aspect ratio
-def resize_with_aspect_ratio(image, max_size):
-    original_width, original_height = image.size
-    max_width, max_height = max_size
-    aspect_ratio = original_width / original_height
-
-    if original_width > original_height:
-        new_width = min(original_width, max_width)
-        new_height = int(new_width / aspect_ratio)
-    else:
-        new_height = min(original_height, max_height)
-        new_width = int(new_height * aspect_ratio)
-
-    if new_width > max_width:
-        new_width = max_width
-        new_height = int(new_width / aspect_ratio)
-    if new_height > max_height:
-        new_height = max_height
-        new_width = int(new_height * aspect_ratio)
-
-    return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-# Function to convert date to Bengali or English format
+# Convert date to Bengali or English format
 def convert_to_date(pub_date, language="Bengali"):
     if language == "Bengali":
         bengali_digits = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
@@ -272,140 +212,130 @@ def convert_to_date(pub_date, language="Bengali"):
         }
         date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
         day, month, year = date_str.split()
-        day_bengali = day.translate(bengali_digits)
-        year_bengali = year.translate(bengali_digits)
-        month_bengali = bengali_months.get(month, month)
-        return f"{day_bengali} {month_bengali} {year_bengali}"
+        return f"{day.translate(bengali_digits)} {bengali_months.get(month, month)} {year.translate(bengali_digits)}"
     else:
-        # English format
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
 
-# Function to create the news card
+# Create the news card
 def create_photo_card(headline, image_url, pub_date, main_domain, language="Bengali", logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
+    canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
+    draw = ImageDraw.Draw(canvas)
+    bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
+
+    # Add news image
+    if image_url:
+        news_image = download_image(image_url)
+        canvas.paste(news_image, (0, 0))
+    else:
+        draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
+        draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
+
+    # Add logo
     try:
-        canvas_color = BRICK_RED if BRICK_RED else "#000000"
-        canvas = Image.new("RGB", CANVAS_SIZE, canvas_color)
-        draw = ImageDraw.Draw(canvas)
-
-        # Load fonts based on language
-        bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
-
-        # Add the news image (top, full width, 660 px height)
-        if image_url:
-            news_image = download_image(image_url)
-            news_image = news_image.resize(IMAGE_SIZE, Image.Resampling.LANCZOS)
-            canvas.paste(news_image, (0, 0))
+        logo = Image.open(logo_path).convert("RGBA")
+        logo_width, logo_height = logo.size
+        aspect = logo_width / logo_height
+        if logo_width > logo_height:
+            logo_width = min(logo_width, LOGO_MAX_SIZE[0])
+            logo_height = int(logo_width / aspect)
         else:
-            draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
-            draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
+            logo_height = min(logo_height, LOGO_MAX_SIZE[1])
+            logo_width = int(logo_height * aspect)
+        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+        canvas.paste(logo, LOGO_POSITION, logo)
+    except FileNotFoundError:
+        draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
 
-        # Add the logo (50 px from top, 40 px from right)
+    # Source text background
+    draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), fill="white")
+    source_text = f"Source: {main_domain}"
+    text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    text_x = (CANVAS_SIZE[0] - text_width) // 2
+    text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5
+    draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
+
+    # Divider
+    draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=MUSTARD_YELLOW)
+
+    # Headline
+    if "not found" in headline.lower():
+        headline = "কোন শিরোনাম পাওয়া যায়নি" if language == "Bengali" else "No Headline Found"
+    headline = headline.encode('utf-8').decode('utf-8')
+    adjust_headline(headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT, HEADLINE_Y_START)
+
+    # Date and comment
+    date_str = convert_to_date(pub_date, language)
+    draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
+
+    comment_text = "বিস্তারিত কমেন্টে" if language == "Bengali" else "More in comments"
+    text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_x = CANVAS_SIZE[0] - PADDING - text_width
+    draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
+
+    # Ad area
+    if ad_path:
         try:
-            logo = Image.open(logo_path).convert("RGBA")
-            logo = resize_with_aspect_ratio(logo, LOGO_MAX_SIZE)
-            logo_width, logo_height = logo.size
-            canvas.paste(logo, LOGO_POSITION, logo)
+            ad_image = Image.open(ad_path)
+            ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
+            canvas.paste(ad_image, (0, AD_AREA_Y))
         except FileNotFoundError:
-            draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
+            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
+            draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Image Missing", fill="white", font=regular_font, anchor="mm")
+    else:
+        draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill=MUSTARD_YELLOW)
+        try:
+            second_logo = Image.open(logo_path).convert("RGBA")
+            second_logo_width, second_logo_height = second_logo.size
+            aspect = second_logo_width / second_logo_height
+            if second_logo_width > second_logo_height:
+                second_logo_width = min(second_logo_width, AD_AREA_SIZE[0])
+                second_logo_height = int(second_logo_width / aspect)
+            else:
+                second_logo_height = min(second_logo_height, AD_AREA_SIZE[1])
+                second_logo_width = int(second_logo_height * aspect)
+            second_logo = second_logo.resize((second_logo_width, second_logo_height), Image.Resampling.LANCZOS)
+            second_logo_x = (CANVAS_SIZE[0] - second_logo_width) // 2
+            second_logo_y = AD_AREA_Y + (AD_AREA_SIZE[1] - second_logo_height) // 2
+            canvas.paste(second_logo, (second_logo_x, second_logo_y), second_logo)
+        except FileNotFoundError:
+            pass
 
-        # Draw the source text background box (white background)
-        draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), 
-                      fill="white")
-
-        # Add the source text on top of the box (black text, slightly upper)
-        source_text = f"Source: {main_domain}"
-        text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_height = text_bbox[3] - text_bbox[1]
-        text_x = (CANVAS_SIZE[0] - text_width) // 2  # Center the source text
-        text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5  # Shift 5 px above center
-        draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
-
-        # Draw the mustard yellow divider
-        draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), 
-                      fill=MUSTARD_YELLOW)
-
-        # Add the headline with dynamic adjustment
-        if "not found" in headline.lower():
-            headline = "কোন শিরোনাম পাওয়া যায়নি" if language == "Bengali" else "No Headline Found"
-        headline = headline.encode('utf-8').decode('utf-8')
-        adjust_headline(headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT, HEADLINE_Y_START)
-
-        # Add the date and source area at y=930 (date in appropriate format, updated padding)
-        date_str = convert_to_date(pub_date, language)
-        draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
-
-        comment_text = "বিস্তারিত কমেন্টে" if language == "Bengali" else "More in comments"
-        text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_x = CANVAS_SIZE[0] - PADDING - text_width  # Right-aligned with updated padding
-        draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
-
-        # Add the ad area at y=990
-        if ad_path:
-            try:
-                ad_image = Image.open(ad_path)
-                ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
-                canvas.paste(ad_image, (0, AD_AREA_Y))
-            except FileNotFoundError:
-                draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
-                draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Image Missing", fill="white", font=regular_font, anchor="mm")
-        else:
-            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill=MUSTARD_YELLOW)
-            # Add second logo in the middle of ad area
-            try:
-                second_logo = Image.open(logo_path).convert("RGBA")
-                second_logo = resize_with_aspect_ratio(second_logo, AD_AREA_SIZE)
-                second_logo_width, second_logo_height = second_logo.size
-                second_logo_x = (CANVAS_SIZE[0] - second_logo_width) // 2  # Center horizontally
-                second_logo_y = AD_AREA_Y + (AD_AREA_SIZE[1] - second_logo_height) // 2  # Center vertically in ad area
-                canvas.paste(second_logo, (second_logo_x, second_logo_y), second_logo)
-            except FileNotFoundError:
-                pass  # No action if second logo fails to load, just keep the mustard yellow background
-
-        # Save the photo card
-        canvas.save(output_path)
-        return output_path
-    except Exception as e:
-        raise Exception(f"Failed to create photo card: {str(e)}")
+    canvas.save(output_path)
+    return output_path
 
 # Streamlit app
 st.title("Automated News Photo Card Generator")
 
-# Initialize session state for URL tracking and language selection
-if 'previous_url' not in st.session_state:
-    st.session_state.previous_url = ""
+# Initialize session state
+if 'url_key' not in st.session_state:
+    st.session_state.url_key = 0
 if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
 
-# Language selection with card-like buttons
+# Language selection
 st.markdown("**Select Language**")
 col1, col2 = st.columns(2)
-
 with col1:
-    if st.button("Bengali", key="bengali_btn", help="Generate card in Bengali"):
+    if st.button("Bengali"):
         st.session_state.language = "Bengali"
-        st.session_state.headline_key += 1  # Reset headline input
-
+        st.session_state.headline_key += 1
 with col2:
-    if st.button("English", key="english_btn", help="Generate card in English"):
+    if st.button("English"):
         st.session_state.language = "English"
-        st.session_state.headline_key += 1  # Reset headline input
+        st.session_state.headline_key += 1
 
-# URL input with validation
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
+# URL input with reset on generate
+url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
 if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
 
-# Reset custom headline if URL or language changes
-if url != st.session_state.previous_url and url is not None:
-    st.session_state.headline_key += 1  # Increment key to reset the text input
-    st.session_state.previous_url = url
-
-# Headline input (editable, reset on URL or language change)
+# Headline input
 placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
 custom_headline = st.text_input(
     f"Enter a custom headline (optional, in {st.session_state.language}):",
@@ -413,23 +343,22 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}"
 )
 
-# Logo upload
-uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG with transparency recommended):", type=["png", "jpg", "jpeg"])
+# Logo and ad upload
+uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG recommended):", type=["png", "jpg", "jpeg"])
 logo_path = "logo.png"
 if uploaded_logo:
     logo_path = "custom_logo.png"
     with open(logo_path, "wb") as f:
         f.write(uploaded_logo.getbuffer())
-    st.success("Custom logo uploaded successfully!")
+    st.success("Custom logo uploaded!")
 
-# Ad image upload
 uploaded_ad = st.file_uploader("Upload an ad image (optional):", type=["png", "jpg", "jpeg"])
 ad_path = None
 if uploaded_ad:
     ad_path = "custom_ad.png"
     with open(ad_path, "wb") as f:
         f.write(uploaded_ad.getbuffer())
-    st.success("Ad image uploaded successfully!")
+    st.success("Ad image uploaded!")
 
 # Generate button
 if st.button("Generate Photo Card"):
@@ -439,11 +368,14 @@ if st.button("Generate Photo Card"):
         with st.spinner("Generating photo card..."):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
-                # Use custom headline if provided, otherwise use extracted or default
                 final_headline = custom_headline if custom_headline else headline
                 output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
+                # Reset URL input
+                st.session_state.url_key += 1
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+                # Reset URL input even on error
+                st.session_state.url_key += 1
