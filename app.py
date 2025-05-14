@@ -320,8 +320,6 @@ if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
-if 'current_url' not in st.session_state:
-    st.session_state.current_url = ""
 
 # Language selection
 st.markdown("**Select Language**")
@@ -335,11 +333,11 @@ with col2:
         st.session_state.language = "English"
         st.session_state.headline_key += 1
 
-# URL input
-url_input = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
-if url_input and not is_valid_url(url_input):
+# URL input with reset on generate
+url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.url_key}")
+if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
-    url_input = None
+    url = None
 
 # Headline input
 placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
@@ -368,29 +366,20 @@ if uploaded_ad:
 
 # Generate button
 if st.button("Generate Photo Card"):
-    # Store the URL for processing and immediately reset the input
-    st.session_state.current_url = url_input
-    st.session_state.url_key += 1  # Reset URL input immediately
-    st.experimental_rerun()  # Force rerun to update UI
-
-# Process the stored URL if it exists
-if st.session_state.current_url:
-    url = st.session_state.current_url
-    with st.spinner("Generating photo card..."):
-        try:
-            pub_date, headline, image_url, source, main_domain = extract_news_data(url)
-            final_headline = custom_headline if custom_headline else headline
-            output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
-            st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
-            with open(output_path, "rb") as file:
-                st.download_button("Download Photo Card", file, file_name="photo_card.png")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-        finally:
-            # Clear the stored URL after processing
-            st.session_state.current_url = ""
-else:
-    if url_input:
-        st.warning("Please press the 'Generate Photo Card' button to proceed.")
+    if not url:
+        st.warning("Please enter a valid URL.")
     else:
-        st.info("Enter a URL and press 'Generate Photo Card' to create a news card.")
+        with st.spinner("Generating photo card..."):
+            try:
+                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+                final_headline = custom_headline if custom_headline else headline
+                output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
+                st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
+                with open(output_path, "rb") as file:
+                    st.download_button("Download Photo Card", file, file_name="photo_card.png")
+                # Reset URL input
+                st.session_state.url_key += 1
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                # Reset URL input even on error
+                st.session_state.url_key += 1
