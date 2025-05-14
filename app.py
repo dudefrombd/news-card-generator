@@ -85,16 +85,6 @@ def extract_news_data(url):
         return pub_date, headline, image_url, source, main_domain
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
-        for attempt in range(3):
-    try:
-        response = requests.get(encoded_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        break
-    except requests.exceptions.RequestException as e:
-        if attempt == 2:
-            raise
-        time.sleep(2)  # Wait 2 seconds before retrying
-
 
 
 # Function to download, crop, and load an image from a URL
