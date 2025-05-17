@@ -25,9 +25,9 @@ HEADLINE_MAX_HEIGHT = 220
 DATE_SOURCE_Y = 930
 AD_AREA_Y = 990
 AD_AREA_SIZE = (1080, 90)
-LOGO_MAX_SIZE = (225, 113)
-AD_LOGO_MAX_SIZE = (158, 79)
-LOGO_POSITION = (1080 - 40 - 225, 50)
+LOGO_MAX_SIZE = (158, 79)  # Reduced by 30% from (225, 113)
+AD_LOGO_MAX_SIZE = (225, 90)
+LOGO_POSITION = (882, 50)  # Adjusted x-position for smaller logo width
 
 # Validate URL
 def is_valid_url(url):
