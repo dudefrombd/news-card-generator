@@ -299,9 +299,15 @@ if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
+if 'generate_key' not in st.session_state:
+    st.session_state.generate_key = 0
+
+# Reset button
+if st.button("Reset"):
+    st.session_state.generate_key += 1
 
 # 1. URL input
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
+url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.generate_key}")
 if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
@@ -311,11 +317,11 @@ placeholder_text = "কোন শিরোনাম পাওয়া যায়ন
 custom_headline = st.text_input(
     f"Enter a custom headline (optional, in {st.session_state.language}):",
     placeholder=placeholder_text,
-    key=f"headline_input_{st.session_state.headline_key}"
+    key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
 )
 
 # 3. Custom image upload
-uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"])
+uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
 image_source = None
 if uploaded_image:
     image_source = uploaded_image
@@ -349,5 +355,9 @@ if st.button("Generate Photo Card"):
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
+                # Reset fields by incrementing generate_key
+                st.session_state.generate_key += 1
             except Exception as e:
                 st.error(f"Error: {str(e)}")
+                # Reset fields even on error
+                st.session_state.generate_key += 1
