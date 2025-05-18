@@ -12,22 +12,25 @@ from urllib.parse import urlparse
 # Constants
 CANVAS_SIZE = (1080, 1080)
 BRICK_RED = "#9E2A2F"
-IMAGE_SIZE = (1080, 660)
+IMAGE_SIZE = (1080, 590)
 SOURCE_BOX_HEIGHT = 50
-SOURCE_BOX_Y = 620
-DIVIDER_Y = 670
+SOURCE_BOX_Y = 590
+DIVIDER_Y = 640
 DIVIDER_THICKNESS = 5
+SUBHEAD_Y_START = 680  # Pushed down by 20px to ensure 40px gap from source box end (640px)
 MUSTARD_YELLOW = "#fed500"
-HEADLINE_Y_START = 710
 PADDING = 20
 HEADLINE_WIDTH = 1040
-HEADLINE_MAX_HEIGHT = 220
-DATE_SOURCE_Y = 930
+HEADLINE_MAX_HEIGHT = 180  # Reduced to 180px to accommodate new layout
+DATE_SOURCE_Y = 950
 AD_AREA_Y = 990
 AD_AREA_SIZE = (1080, 90)
 LOGO_MAX_SIZE = (158, 79)
 AD_LOGO_MAX_SIZE = (225, 90)
 LOGO_POSITION = (882, 50)
+SUBHEAD_MAX_WIDTH = 1000  # Effective width for subhead text (accounting for padding)
+SUBHEAD_TO_DATE_GAP = 50  # Fixed gap between subhead and date
+SUBHEAD_LINE_SPACING = 10  # Reduced line spacing for subheading
 
 # Validate URL
 def is_valid_url(url):
@@ -137,7 +140,7 @@ def load_fonts(language="Bengali", font_size=48):
 
         try:
             font_path_regular = os.path.join(script_dir, "fonts", "NotoSerifBengali-Regular.ttf")
-            bangla_font_small = ImageFont.truetype(font_path_regular, 30)
+            bangla_font_small = ImageFont.truetype(font_path_regular, 26)
             regular_font = ImageFont.truetype(font_path_regular, 24)
         except IOError:
             bangla_font_small = regular_font = ImageFont.load_default()
@@ -150,48 +153,117 @@ def load_fonts(language="Bengali", font_size=48):
 
         try:
             font_path_regular = os.path.join(script_dir, "fonts", "NotoSerifBengali-Regular.ttf")
-            bangla_font_small = ImageFont.truetype(font_path_regular, 24)
+            bangla_font_small = ImageFont.truetype(font_path_regular, 26)
             regular_font = ImageFont.truetype(font_path_regular, 24)
         except IOError:
             bangla_font_small = regular_font = ImageFont.load_default()
 
     return bangla_font_small, bangla_font_large, regular_font
 
-# Adjust headline layout
-def adjust_headline(headline, language, draw, max_width, max_height, start_y):
-    font_sizes = [72, 68, 64, 60, 56, 52, 48, 44, 40]
-    line_spacing_factor = 1.2
+# Adjust headline and subheading layout
+def adjust_headline_and_subhead(subhead, headline, language, draw, max_width, max_height, subhead_y_start):
+    font_sizes = [66, 62, 57, 53, 48, 44, 40]
     best_font_size = font_sizes[0]
-    best_lines = []
+    best_subhead_lines = []
+    best_headline_lines = []
     best_spacing = 0
 
     for size in font_sizes:
         bangla_font_small, bangla_font_large, _ = load_fonts(language, size)
-        wrapped_text = textwrap.wrap(headline, width=int(max_width / (size * 0.5)))
+        subhead_wrapped = textwrap.wrap(subhead, width=int(max_width / (size * 0.5))) if subhead else []
+        headline_wrapped = textwrap.wrap(headline, width=int(max_width / (size * 0.5)))
         total_height = 0
-        lines = []
+        subhead_lines = []
+        headline_lines = []
 
-        for line in wrapped_text:
+        # Process subhead (multi-line)
+        if subhead_wrapped:
+            base_font_size = int(size * 0.76)  # Starting point (76% of headline size)
+            subhead_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size) if language == "Bengali" else ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size)
+            max_line_width = 0
+            for line in subhead_wrapped:
+                bbox = subhead_font.getbbox(line)
+                line_width = bbox[2] - bbox[0]
+                max_line_width = max(max_line_width, line_width)
+                line_height = bbox[3] - bbox[1]
+                while max_line_width > SUBHEAD_MAX_WIDTH and base_font_size > 20:  # Minimum font size of 20px
+                    base_font_size -= 1
+                    subhead_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size) if language == "Bengali" else ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size)
+                    bbox = subhead_font.getbbox(line)
+                    line_width = bbox[2] - bbox[0]
+                    max_line_width = max(max_line_width, line_width)
+                    line_height = bbox[3] - bbox[1]
+                subhead_lines.append(line)
+            subhead_font_size = base_font_size
+            line_height = bbox[3] - bbox[1]
+            total_height += len(subhead_lines) * line_height + (len(subhead_lines) - 1) * SUBHEAD_LINE_SPACING
+
+        # Process headline
+        for line in headline_wrapped:
             bbox = bangla_font_large.getbbox(line)
             line_width = bbox[2] - bbox[0]
             line_height = bbox[3] - bbox[1]
             if line_width > max_width:
                 break
-            lines.append(line)
+            headline_lines.append(line)
             total_height += line_height
 
-        spacing = int(size * line_spacing_factor)
-        total_height += (len(lines) - 1) * spacing
+        spacing = int(size * 1.2)  # Keep headline spacing as 1.2 times font size
+        total_height += (len(headline_lines) - 1) * spacing
 
-        if total_height <= max_height and len(lines) > 0:
+        if total_height <= max_height + (len(subhead_lines) * line_height if subhead_lines else 0) and len(headline_lines) > 0:
             best_font_size = size
-            best_lines = lines
+            best_subhead_lines = subhead_lines
+            best_headline_lines = headline_lines
             best_spacing = spacing
             break
 
     bangla_font_small, bangla_font_large, _ = load_fonts(language, best_font_size)
-    headline_y = start_y
-    for line in best_lines:
+    subhead_y = subhead_y_start
+    subhead_font_size = int(best_font_size * 0.76)
+    if best_subhead_lines:
+        base_font_size = subhead_font_size
+        subhead_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size) if language == "Bengali" else ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size)
+        max_line_width = 0
+        for line in best_subhead_lines:
+            bbox = subhead_font.getbbox(line)
+            line_width = bbox[2] - bbox[0]
+            max_line_width = max(max_line_width, line_width)
+        while max_line_width > SUBHEAD_MAX_WIDTH and base_font_size > 20:  # Minimum font size of 20px
+            base_font_size -= 1
+            subhead_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size) if language == "Bengali" else ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), base_font_size)
+            max_line_width = 0
+            for line in best_subhead_lines:
+                bbox = subhead_font.getbbox(line)
+                line_width = bbox[2] - bbox[0]
+                max_line_width = max(max_line_width, line_width)
+        subhead_font_size = base_font_size
+    subhead_font = ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), subhead_font_size) if language == "Bengali" else ImageFont.truetype(os.path.join(os.path.dirname(__file__), "fonts", "NotoSerifBengali-Regular.ttf"), subhead_font_size)
+
+    # Calculate subhead box height based on number of lines
+    subhead_box_height = 0
+    if best_subhead_lines:
+        bbox = subhead_font.getbbox("A")  # Use a sample character to get line height
+        line_height = bbox[3] - bbox[1]
+        subhead_box_height = len(best_subhead_lines) * line_height + (len(best_subhead_lines) - 1) * SUBHEAD_LINE_SPACING
+
+    # Draw subhead box
+    draw.rectangle((0, subhead_y_start, CANVAS_SIZE[0], subhead_y_start + subhead_box_height), fill=BRICK_RED)
+
+    # Draw subhead if it exists
+    if subhead and best_subhead_lines:
+        for line in best_subhead_lines:
+            bbox = subhead_font.getbbox(line)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2
+            text_y = subhead_y + (subhead_box_height - (len(best_subhead_lines) * text_height + (len(best_subhead_lines) - 1) * SUBHEAD_LINE_SPACING)) // 2 + best_subhead_lines.index(line) * (text_height + SUBHEAD_LINE_SPACING)
+            draw.text((text_x, text_y), line, fill=MUSTARD_YELLOW, font=subhead_font)
+
+    # Calculate headline start position (50px gap after subhead box)
+    headline_y_start = subhead_y_start + subhead_box_height + SUBHEAD_TO_DATE_GAP
+    headline_y = headline_y_start
+    for line in best_headline_lines:
         bbox = bangla_font_large.getbbox(line)
         text_width = bbox[2] - bbox[0]
         text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2
@@ -217,7 +289,7 @@ def convert_to_date(pub_date, language="Bengali"):
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
 
 # Create the news card
-def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
+def create_photo_card(headline, subhead, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
     canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
@@ -254,7 +326,7 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), fill=MUSTARD_YELLOW)
     source_text = f"Source: {main_domain}"
     text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
-    text_width = text_bbox[2] - text_bbox[0]
+    text_width = text_bbox[2] - text_bbox[0]  # Corrected from bbox to text_bbox
     text_height = text_bbox[3] - text_bbox[1]
     text_x = (CANVAS_SIZE[0] - text_width) // 2
     text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5
@@ -263,11 +335,14 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     # Divider
     draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=MUSTARD_YELLOW)
 
-    # Headline
+    # Subhead and headline
     if "not found" in headline.lower():
         headline = "কোন শিরোনাম পাওয়া যায়নি" if language == "Bengali" else "No Headline Found"
+    if not subhead:
+        subhead = None
     headline = headline.encode('utf-8').decode('utf-8')
-    adjust_headline(headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT, HEADLINE_Y_START)
+    subhead = subhead.encode('utf-8').decode('utf-8') if subhead else None
+    adjust_headline_and_subhead(subhead, headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT, SUBHEAD_Y_START)
 
     # Date and comment
     date_str = convert_to_date(pub_date, language)
@@ -297,6 +372,8 @@ st.title("Automated News Photo Card Generator")
 # Initialize session state
 if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
+if 'subhead_key' not in st.session_state:
+    st.session_state.subhead_key = 0
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
 if 'generate_key' not in st.session_state:
@@ -320,24 +397,35 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
 )
 
-# 3. Custom image upload
+# 3. Subheading input
+subhead_placeholder = "কোন উপশিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Subheading Found"
+custom_subhead = st.text_input(
+    f"Enter a custom subheading (optional, in {st.session_state.language}):",
+    placeholder=subhead_placeholder,
+    key=f"subhead_input_{st.session_state.subhead_key}_{st.session_state.generate_key}"
+)
+
+# 4. Custom image upload
 uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
 image_source = None
 if uploaded_image:
     image_source = uploaded_image
     st.success("Custom image uploaded!")
 
-# 4. Language selection
+# 5. Language selection dropdown
 st.markdown("**Select Language**")
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("Bengali"):
-        st.session_state.language = "Bengali"
-        st.session_state.headline_key += 1
-with col2:
-    if st.button("English"):
-        st.session_state.language = "English"
-        st.session_state.headline_key += 1
+selected_language = st.selectbox(
+    "Choose a language:",
+    options=["Bengali", "English"],
+    index=0 if st.session_state.language == "Bengali" else 1,
+    key=f"language_select_{st.session_state.generate_key}"
+)
+
+# Update session state when language changes
+if selected_language != st.session_state.language:
+    st.session_state.language = selected_language
+    st.session_state.headline_key += 1
+    st.session_state.subhead_key += 1
 
 # Generate button
 if st.button("Generate Photo Card"):
@@ -348,10 +436,11 @@ if st.button("Generate Photo Card"):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
                 final_headline = custom_headline if custom_headline else headline
+                final_subhead = custom_subhead if custom_subhead else None
                 # Use uploaded image if provided, otherwise use image_url
                 if not image_source and image_url:
                     image_source = image_url
-                output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
+                output_path = create_photo_card(final_headline, final_subhead, image_source, pub_date, main_domain, language=st.session_state.language)
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
