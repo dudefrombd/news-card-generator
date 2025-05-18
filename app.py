@@ -25,9 +25,9 @@ HEADLINE_MAX_HEIGHT = 220
 DATE_SOURCE_Y = 930
 AD_AREA_Y = 990
 AD_AREA_SIZE = (1080, 90)
-LOGO_MAX_SIZE = (158, 79)  # Reduced by 30% from (225, 113)
+LOGO_MAX_SIZE = (158, 79)
 AD_LOGO_MAX_SIZE = (225, 90)
-LOGO_POSITION = (882, 50)  # Adjusted x-position for smaller logo width
+LOGO_POSITION = (882, 50)
 
 # Validate URL
 def is_valid_url(url):
@@ -83,14 +83,17 @@ def extract_news_data(url):
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Download and process image
-def download_image(image_url):
+# Process image (from URL or uploaded)
+def process_image(image_source, is_uploaded=False):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(image_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        image_data = BytesIO(response.content)
-        image = Image.open(image_data)
+        if is_uploaded:
+            image = Image.open(image_source)
+        else:
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+            response = requests.get(image_source, headers=headers, timeout=10)
+            response.raise_for_status()
+            image_data = BytesIO(response.content)
+            image = Image.open(image_data)
 
         # Crop bottom 15%
         width, height = image.size
@@ -118,7 +121,7 @@ def download_image(image_url):
 
         return image
     except Exception as e:
-        raise Exception(f"Failed to download or crop image: {str(e)}")
+        raise Exception(f"Failed to process image: {str(e)}")
 
 # Load fonts
 def load_fonts(language="Bengali", font_size=48):
@@ -214,22 +217,26 @@ def convert_to_date(pub_date, language="Bengali"):
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.datetime.now().strftime("%d %B %Y")
 
 # Create the news card
-def create_photo_card(headline, image_url, pub_date, main_domain, language="Bengali", logo_path="logo.png", ad_path=None, output_path="photo_card.png"):
+def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
     canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
 
     # Add news image
-    if image_url:
-        news_image = download_image(image_url)
-        canvas.paste(news_image, (0, 0))
+    if image_source:
+        try:
+            news_image = process_image(image_source, is_uploaded=(not isinstance(image_source, str)))
+            canvas.paste(news_image, (0, 0))
+        except Exception as e:
+            draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
+            draw.text((400, 300), f"Image Error: {str(e)}", fill="white", font=regular_font)
     else:
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
     # Add top logo
     try:
-        logo = Image.open(logo_path).convert("RGBA")
+        logo = Image.open("logo.png").convert("RGBA")
         logo_width, logo_height = logo.size
         aspect = logo_width / logo_height
         if logo_width > logo_height:
@@ -244,7 +251,7 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
         draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
 
     # Source text background
-    draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), fill="white")
+    draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), fill=MUSTARD_YELLOW)
     source_text = f"Source: {main_domain}"
     text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
     text_width = text_bbox[2] - text_bbox[0]
@@ -273,22 +280,13 @@ def create_photo_card(headline, image_url, pub_date, main_domain, language="Beng
     draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
 
     # Ad area
-    if ad_path:
-        try:
-            ad_image = Image.open(ad_path)
-            ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
-            canvas.paste(ad_image, (0, AD_AREA_Y))
-        except FileNotFoundError:
-            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
-            draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Ad Image Missing", fill="white", font=regular_font, anchor="mm")
-    else:
-        try:
-            ad_image = Image.open("cp-ad.png")
-            ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
-            canvas.paste(ad_image, (0, AD_AREA_Y))
-        except FileNotFoundError:
-            draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
-            draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Default Ad Image Missing", fill="white", font=regular_font, anchor="mm")
+    try:
+        ad_image = Image.open("cp-ad.png")
+        ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
+        canvas.paste(ad_image, (0, AD_AREA_Y))
+    except FileNotFoundError:
+        draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
+        draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 45), "Default Ad Image Missing", fill="white", font=regular_font, anchor="mm")
 
     canvas.save(output_path)
     return output_path
@@ -302,7 +300,28 @@ if 'headline_key' not in st.session_state:
 if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
 
-# Language selection
+# 1. URL input
+url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
+if url and not is_valid_url(url):
+    st.error("Please enter a valid URL (e.g., https://example.com).")
+    url = None
+
+# 2. Headline input
+placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
+custom_headline = st.text_input(
+    f"Enter a custom headline (optional, in {st.session_state.language}):",
+    placeholder=placeholder_text,
+    key=f"headline_input_{st.session_state.headline_key}"
+)
+
+# 3. Custom image upload
+uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"])
+image_source = None
+if uploaded_image:
+    image_source = uploaded_image
+    st.success("Custom image uploaded!")
+
+# 4. Language selection
 st.markdown("**Select Language**")
 col1, col2 = st.columns(2)
 with col1:
@@ -314,37 +333,6 @@ with col2:
         st.session_state.language = "English"
         st.session_state.headline_key += 1
 
-# URL input
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article")
-if url and not is_valid_url(url):
-    st.error("Please enter a valid URL (e.g., https://example.com).")
-    url = None
-
-# Headline input
-placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
-custom_headline = st.text_input(
-    f"Enter a custom headline (optional, in {st.session_state.language}):",
-    placeholder=placeholder_text,
-    key=f"headline_input_{st.session_state.headline_key}"
-)
-
-# Logo and ad upload
-uploaded_logo = st.file_uploader("Upload a custom logo (optional, PNG recommended):", type=["png", "jpg", "jpeg"])
-logo_path = "logo.png"
-if uploaded_logo:
-    logo_path = "custom_logo.png"
-    with open(logo_path, "wb") as f:
-        f.write(uploaded_logo.getbuffer())
-    st.success("Custom logo uploaded!")
-
-uploaded_ad = st.file_uploader("Upload an ad image (optional):", type=["png", "jpg", "jpeg"])
-ad_path = None
-if uploaded_ad:
-    ad_path = "custom_ad.png"
-    with open(ad_path, "wb") as f:
-        f.write(uploaded_ad.getbuffer())
-    st.success("Ad image uploaded!")
-
 # Generate button
 if st.button("Generate Photo Card"):
     if not url:
@@ -354,7 +342,10 @@ if st.button("Generate Photo Card"):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
                 final_headline = custom_headline if custom_headline else headline
-                output_path = create_photo_card(final_headline, image_url, pub_date, main_domain, language=st.session_state.language, logo_path=logo_path, ad_path=ad_path)
+                # Use uploaded image if provided, otherwise use image_url
+                if not image_source and image_url:
+                    image_source = image_url
+                output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
                     st.download_button("Download Photo Card", file, file_name="photo_card.png")
