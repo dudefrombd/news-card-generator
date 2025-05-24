@@ -303,11 +303,11 @@ def convert_to_date(pub_date, language="Bengali"):
             "July": "জুলাই", "August": "আগস্ট", "September": "সেপ্টেম্বর",
             "October": "অক্টোবর", "November": "নভেম্বর", "December": "ডিসেম্বর"
         }
-        date_str = pub_date.strftime("%d %B %Y") if pub_date else "20 May 2025"
+        date_str = pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
         day, month, year = date_str.split()
         return f"{day.translate(bengali_digits)} {bengali_months.get(month, month)} {year.translate(bengali_digits)}"
     else:
-        return pub_date.strftime("%d %B %Y") if pub_date else "20 May 2025"
+        return pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
 
 # Create the news card
 def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
@@ -418,7 +418,19 @@ if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
 
-# 2. Headline input
+# 2. Option to override date
+st.markdown("**Override Publication Date (Optional)**")
+override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
+if override_date:
+    manual_date = st.date_input(
+        "Select the publication date:",
+        value=datetime.date(2025, 5, 24),  # Default to today's date
+        min_value=datetime.date(1900, 1, 1),
+        max_value=datetime.date(2025, 5, 24),  # Current date as max
+        key=f"date_input_{st.session_state.generate_key}"
+    )
+
+# 3. Headline input
 placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
 custom_headline = st.text_input(
     f"Enter a custom headline (optional, in {st.session_state.language}):",
@@ -426,14 +438,14 @@ custom_headline = st.text_input(
     key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
 )
 
-# 3. Custom image upload
+# 4. Custom image upload
 uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
 image_source = None
 if uploaded_image:
     image_source = uploaded_image
     st.success("Custom image uploaded!")
 
-# 4. Language selection dropdown
+# 5. Language selection dropdown
 st.markdown("**Select Language**")
 selected_language = st.selectbox(
     "Choose a language:",
@@ -455,6 +467,9 @@ if st.button("Generate Photo Card"):
         with st.spinner("Generating photo card..."):
             try:
                 pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+                # Use manual date if override is enabled
+                if override_date:
+                    pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
                 final_headline = custom_headline if custom_headline else headline
                 if not image_source and image_url:
                     image_source = image_url
