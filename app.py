@@ -418,7 +418,22 @@ if url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
 
-# 2. Option to override date
+# 2. Headline input
+placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
+custom_headline = st.text_input(
+    f"Enter a custom headline (optional, in {st.session_state.language}):",
+    placeholder=placeholder_text,
+    key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
+)
+
+# 3. Custom image upload
+uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
+image_source = None
+if uploaded_image:
+    image_source = uploaded_image
+    st.success("Custom image uploaded!")
+
+# 4. Option to override date
 st.markdown("**Override Publication Date (Optional)**")
 override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
 if override_date:
@@ -430,22 +445,24 @@ if override_date:
         key=f"date_input_{st.session_state.generate_key}"
     )
 
-# 3. Headline input
-placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
-custom_headline = st.text_input(
-    f"Enter a custom headline (optional, in {st.session_state.language}):",
-    placeholder=placeholder_text,
-    key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
-)
+# 5. Option to override source
+st.markdown("**Override Source (Optional)**")
+override_source = st.checkbox("Manually set the source", key=f"override_source_{st.session_state.generate_key}")
+if override_source:
+    source_options = [
+        "প্রথম আলো", "কালের কন্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
+        "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পুর্বকোণ", "দৈনিক আজাদী",
+        "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ",
+        "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV"
+    ]
+    manual_source = st.selectbox(
+        "Select the source:",
+        options=source_options,
+        index=0,  # Default to "প্রথম আলো"
+        key=f"source_input_{st.session_state.generate_key}"
+    )
 
-# 4. Custom image upload
-uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
-image_source = None
-if uploaded_image:
-    image_source = uploaded_image
-    st.success("Custom image uploaded!")
-
-# 5. Language selection dropdown
+# 6. Language selection dropdown
 st.markdown("**Select Language**")
 selected_language = st.selectbox(
     "Choose a language:",
@@ -470,6 +487,9 @@ if st.button("Generate Photo Card"):
                 # Use manual date if override is enabled
                 if override_date:
                     pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
+                # Use manual source if override is enabled
+                if override_source:
+                    main_domain = manual_source
                 final_headline = custom_headline if custom_headline else headline
                 if not image_source and image_url:
                     image_source = image_url
