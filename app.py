@@ -8,6 +8,7 @@ import textwrap
 import re
 import os
 from urllib.parse import urlparse
+import base64
 
 # Constants
 CANVAS_SIZE = (1080, 1200)
@@ -34,12 +35,14 @@ MAP_BOX_HEIGHT = 400
 MAP_BOX_X = 0
 MAP_BOX_Y = 700
 
-# Validate URL
+# Validate URL (Updated to handle query parameters)
 def is_valid_url(url):
     regex = re.compile(
-        r'^(https?://)?'
-        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'
-        r'(/[^?\s]*)?$'
+        r'^(https?://)'  # Scheme
+        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # Domain
+        r'(/[^#\s]*)?'  # Path (optional)
+        r'(\?[^#\s]*)?'  # Query parameters (optional)
+        r'(\#.*)?$'  # Fragment (optional)
     )
     return re.match(regex, url) is not None
 
@@ -88,17 +91,46 @@ def extract_news_data(url):
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Process image (from URL or uploaded)
-def process_image(image_source, is_uploaded=False):
+# Convert URL to base64 (Updated with better error handling)
+def url_to_base64(image_url):
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'image/*',
+            'Referer': 'https://www.ittefaq.com.bd'  # Added Referer to mimic browser behavior
+        }
+        # Follow redirects and handle potential CORS issues
+        response = requests.get(image_url, headers=headers, timeout=10, allow_redirects=True)
+        response.raise_for_status()
+        content_type = response.headers.get('Content-Type', '')
+        if not content_type.startswith('image/'):
+            raise Exception("The URL does not point to a valid image file.")
+        image_data = BytesIO(response.content)
+        image = Image.open(image_data)
+        buffered = BytesIO()
+        image.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+    except Exception as e:
+        raise Exception(f"Failed to fetch image from URL: {str(e)}. The server may be blocking the request, or the URL may not be publicly accessible.")
+
+# Process image (from URL, uploaded, or base64)
+def process_image(image_source, is_uploaded=False, is_base64=False):
     try:
         if is_uploaded:
             image = Image.open(image_source)
+        elif is_base64:
+            # Remove the base64 prefix if present (e.g., "data:image/png;base64,")
+            if "," in image_source:
+                image_source = image_source.split(",")[1]
+            image_data = base64.b64decode(image_source)
+            image = Image.open(BytesIO(image_data))
         else:
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-            response = requests.get(image_source, headers=headers, timeout=10)
-            response.raise_for_status()
-            image_data = BytesIO(response.content)
-            image = Image.open(image_data)
+            # Assume it's a URL and convert to base64 first
+            image_source = url_to_base64(image_source)
+            if "," in image_source:
+                image_source = image_source.split(",")[1]
+            image_data = base64.b64decode(image_source)
+            image = Image.open(BytesIO(image_data))
 
         # Crop bottom 15%
         width, height = image.size
@@ -328,7 +360,7 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     # Add news image
     if image_source:
         try:
-            news_image = process_image(image_source, is_uploaded=(not isinstance(image_source, str)))
+            news_image = process_image(image_source, is_uploaded=(not isinstance(image_source, str)), is_base64=(isinstance(image_source, str) and (image_source.startswith("data:image") or re.match(r'^[A-Za-z0-9+/=]+$', image_source))))
             canvas.paste(news_image, (0, 0))
         except Exception as e:
             draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
@@ -441,7 +473,44 @@ if uploaded_image:
     image_source = uploaded_image
     st.success("Custom image uploaded!")
 
-# 4. Option to override date
+# 4. Copy and Paste image option
+st.markdown("**Copy and Paste Image (Optional)**")
+st.markdown("Copy an image from your clipboard or right-click an image online and select 'Copy Image Address', then paste here. The app will process it automatically.")
+pasted_image = st.text_area(
+    "Paste image or URL here:",
+    placeholder="e.g., https://example.com/image.jpg (pasted from 'Copy Image Address')",
+    key=f"pasted_image_{st.session_state.generate_key}"
+)
+if pasted_image:
+    try:
+        # Assume pasted content is either a URL or needs to be validated as an image source
+        if pasted_image.startswith("http"):
+            if is_valid_url(pasted_image):
+                # Convert URL to base64 automatically
+                base64_data = url_to_base64(pasted_image)
+                image_source = f"data:image/png;base64,{base64_data}"
+                st.success("Pasted image URL processed successfully!")
+            else:
+                st.error("Invalid image URL: Please provide a valid URL (e.g., https://example.com/image.jpg).")
+                pasted_image = None
+        else:
+            # Attempt to treat as a URL if it contains a domain-like pattern, otherwise fail
+            if re.search(r'[a-zA-Z0-9-]+\.[a-zA-Z]{2,}', pasted_image):
+                try:
+                    base64_data = url_to_base64(pasted_image)
+                    image_source = f"data:image/png;base64,{base64_data}"
+                    st.success("Pasted image URL processed successfully!")
+                except Exception as e:
+                    st.error(f"Invalid image URL: The pasted URL does not point to a valid image. Please use 'Copy Image Address' from a browser. Error: {str(e)}")
+                    pasted_image = None
+            else:
+                st.error("Invalid input: Please copy an image or its address and paste it here. Ensure the URL is valid or try uploading an image.")
+                pasted_image = None
+    except Exception as e:
+        st.error(f"Failed to process pasted image: {str(e)}")
+        pasted_image = None
+
+# 5. Option to override date
 st.markdown("**Override Publication Date (Optional)**")
 override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
 if override_date:
@@ -453,7 +522,7 @@ if override_date:
         key=f"date_input_{st.session_state.generate_key}"
     )
 
-# 5. Option to override source
+# 6. Option to override source
 st.markdown("**Override Source (Optional)**")
 override_source = st.checkbox("Manually set the source", key=f"override_source_{st.session_state.generate_key}")
 if override_source:
@@ -470,7 +539,7 @@ if override_source:
         key=f"source_input_{st.session_state.generate_key}"
     )
 
-# 6. Language selection dropdown
+# 7. Language selection dropdown
 st.markdown("**Select Language**")
 selected_language = st.selectbox(
     "Choose a language:",
@@ -513,7 +582,7 @@ if st.button("Generate Photo Card"):
                 # Use custom headline if provided, otherwise use extracted or default
                 final_headline = custom_headline if custom_headline else headline
 
-                # Use uploaded image if provided, otherwise try URL image
+                # Use uploaded or pasted image if provided, otherwise try URL image
                 if not image_source and image_url:
                     image_source = image_url
 
