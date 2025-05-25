@@ -412,9 +412,17 @@ if 'generate_key' not in st.session_state:
 if st.button("Reset"):
     st.session_state.generate_key += 1
 
+# Option to generate without URL
+skip_url = st.checkbox("Generate card without URL", key=f"skip_url_{st.session_state.generate_key}")
+
 # 1. URL input
-url = st.text_input("Enter the news article URL:", placeholder="https://example.com/news-article", key=f"url_input_{st.session_state.generate_key}")
-if url and not is_valid_url(url):
+url = st.text_input(
+    "Enter the news article URL:",
+    placeholder="https://example.com/news-article",
+    key=f"url_input_{st.session_state.generate_key}",
+    disabled=skip_url
+)
+if not skip_url and url and not is_valid_url(url):
     st.error("Please enter a valid URL (e.g., https://example.com).")
     url = None
 
@@ -439,9 +447,9 @@ override_date = st.checkbox("Manually set the publication date", key=f"override_
 if override_date:
     manual_date = st.date_input(
         "Select the publication date:",
-        value=datetime.date(2025, 5, 24),  # Default to today's date
+        value=datetime.date(2025, 5, 25),  # Updated to today's date
         min_value=datetime.date(1900, 1, 1),
-        max_value=datetime.date(2025, 5, 24),  # Current date as max
+        max_value=datetime.date(2025, 5, 25),  # Current date as max
         key=f"date_input_{st.session_state.generate_key}"
     )
 
@@ -452,8 +460,8 @@ if override_source:
     source_options = [
         "প্রথম আলো", "কালের কন্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
         "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পুর্বকোণ", "দৈনিক আজাদী",
-        "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ", "ইত্তেফাক",
-        "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV"
+        "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ",
+        "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
     ]
     manual_source = st.selectbox(
         "Select the source:",
@@ -478,21 +486,37 @@ if selected_language != st.session_state.language:
 
 # Generate button
 if st.button("Generate Photo Card"):
-    if not url:
-        st.warning("Please enter a valid URL.")
+    if not skip_url and not url:
+        st.warning("Please enter a valid URL or check 'Generate card without URL'.")
     else:
         with st.spinner("Generating photo card..."):
             try:
-                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+                if skip_url:
+                    # Set defaults when skipping URL
+                    pub_date = datetime.datetime(2025, 5, 25)  # Current date
+                    headline = "Headline not found"
+                    image_url = None
+                    source = "Source not found"
+                    main_domain = "Unknown"
+                else:
+                    # Extract data from URL
+                    pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+
                 # Use manual date if override is enabled
                 if override_date:
                     pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
+
                 # Use manual source if override is enabled
                 if override_source:
                     main_domain = manual_source
+
+                # Use custom headline if provided, otherwise use extracted or default
                 final_headline = custom_headline if custom_headline else headline
+
+                # Use uploaded image if provided, otherwise try URL image
                 if not image_source and image_url:
                     image_source = image_url
+
                 output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
                 st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
                 with open(output_path, "rb") as file:
