@@ -25,12 +25,8 @@ DATE_SOURCE_Y = 1050
 AD_AREA_Y = 1100
 AD_AREA_SIZE = (1080, 100)
 LOGO_MAX_SIZE = (142, 71)  # Scaled down 10% from original (158, 79)
-SOURCE_LOGO_MAX_SIZE = (142, 71)  # Same as LOGO_MAX_SIZE for consistency
 AD_LOGO_MAX_SIZE = (225, 90)
 LOGO_POSITION = (480, 720)  # Existing logo position (center, below source box)
-SOURCE_LOGO_POSITION_Y = 100  # 100px from top
-SOURCE_LOGO_POSITION_X_OFFSET = 100  # 100px from right
-SOURCE_LOGO_OPACITY = 0.5  # 50% transparency
 MAP_OPACITY = 0.3
 SOURCE_BOX_OPACITY = 0.7
 MAP_BOX_WIDTH = 1080
@@ -101,7 +97,7 @@ def extract_main_domain(url):
     except Exception:
         return "Unknown"
 
-# Extract news data and source logo
+# Extract news data
 def extract_news_data(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
@@ -131,24 +127,8 @@ def extract_news_data(url):
         source_tag = soup.find('meta', {'property': 'og:site_name'})
         source = source_tag['content'] if source_tag else 'Source not found'
 
-        # Extract source logo
-        logo_url = None
-        # Try meta tag for logo
-        logo_meta_tag = soup.find('meta', {'property': 'og:logo'})
-        if logo_meta_tag and 'content' in logo_meta_tag.attrs:
-            logo_url = logo_meta_tag['content']
-        else:
-            # Fallback: Look for <img> tag with class containing "logo"
-            logo_img = soup.find('img', class_=lambda x: x and 'logo' in x.lower())
-            if logo_img and 'src' in logo_img.attrs:
-                logo_url = logo_img['src']
-                # Handle relative URLs
-                if logo_url.startswith('/'):
-                    parsed_url = urlparse(url)
-                    logo_url = f"{parsed_url.scheme}://{parsed_url.netloc}{logo_url}"
-
         main_domain = extract_main_domain(url)
-        return pub_date, headline, image_url, source, main_domain, logo_url
+        return pub_date, headline, image_url, source, main_domain
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
@@ -231,38 +211,6 @@ def process_image(image_source, is_uploaded=False, is_base64=False):
         return image
     except Exception as e:
         raise Exception(f"Failed to process image: {str(e)}")
-
-# Process the source logo
-def process_source_logo(logo_url):
-    try:
-        # Fetch the logo using url_to_base64
-        logo_base64 = url_to_base64(logo_url)
-        if "," in logo_base64:
-            logo_base64 = logo_base64.split(",")[1]
-        logo_data = base64.b64decode(logo_base64)
-        logo = Image.open(BytesIO(logo_data)).convert("RGBA")
-
-        # Resize the logo to fit within SOURCE_LOGO_MAX_SIZE
-        logo_width, logo_height = logo.size
-        aspect = logo_width / logo_height
-        if logo_width > logo_height:
-            logo_width = min(logo_width, SOURCE_LOGO_MAX_SIZE[0])
-            logo_height = int(logo_width / aspect)
-        else:
-            logo_height = min(logo_height, SOURCE_LOGO_MAX_SIZE[1])
-            logo_width = int(logo_height * aspect)
-        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
-
-        # Adjust opacity (50% transparency)
-        logo_data = logo.getdata()
-        new_data = []
-        for item in logo_data:
-            new_data.append((item[0], item[1], item[2], int(item[3] * SOURCE_LOGO_OPACITY)))
-        logo.putdata(new_data)
-
-        return logo, logo_width
-    except Exception as e:
-        raise Exception(f"Failed to process source logo: {str(e)}")
 
 # Process the world map for overlay
 def process_world_map(map_path):
@@ -442,7 +390,7 @@ def convert_to_date(pub_date, language="Bengali"):
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
 
 # Create the news card
-def create_photo_card(headline, image_source, pub_date, main_domain, source_logo_url, language="Bengali", output_path="photo_card.png"):
+def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
     canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
@@ -468,17 +416,6 @@ def create_photo_card(headline, image_source, pub_date, main_domain, source_logo
     else:
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
-
-    # Add source logo on top of the image (100px from top, 100px from right)
-    if source_logo_url:
-        try:
-            source_logo, logo_width = process_source_logo(source_logo_url)
-            # Position: 100px from right (right edge at x=980), 100px from top
-            x_position = CANVAS_SIZE[0] - SOURCE_LOGO_POSITION_X_OFFSET - logo_width
-            canvas.paste(source_logo, (x_position, SOURCE_LOGO_POSITION_Y), source_logo)
-        except Exception as e:
-            print(f"Warning: Could not load source logo: {str(e)}")
-            draw.text((CANVAS_SIZE[0] - SOURCE_LOGO_POSITION_X_OFFSET - 50, SOURCE_LOGO_POSITION_Y), "Source Logo Error", fill="red", font=regular_font)
 
     # Add top logo (original logo at center)
     try:
@@ -644,15 +581,14 @@ if st.button("Generate Photo Card"):
         try:
             if skip_url:
                 # Set defaults when skipping URL
-                pub_date = datetime.datetime(2025, 5, 27, 20, 5)  # Current date and time
+                pub_date = datetime.datetime(2025, 5, 27, 22, 56)  # Current date and time
                 headline = "Headline not found"
                 image_url = None
                 source = "Source not found"
                 main_domain = "Unknown"
-                source_logo_url = None
             else:
-                # Extract data from URL, including source logo
-                pub_date, headline, image_url, source, main_domain, source_logo_url = extract_news_data(url)
+                # Extract data from URL
+                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
 
             # Use manual date if override is enabled
             if override_date:
@@ -669,7 +605,7 @@ if st.button("Generate Photo Card"):
             if not image_source and image_url:
                 image_source = image_url
 
-            output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, source_logo_url, language=st.session_state.language)
+            output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
             st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
             with open(output_path, "rb") as file:
                 st.download_button("Download Photo Card", file, file_name="photo_card.png")
