@@ -9,16 +9,15 @@ import re
 import os
 from urllib.parse import urlparse
 import base64
+import time
 
 # Constants
 CANVAS_SIZE = (1080, 1200)
-BRICK_RED = "#9E2A2F"
 IMAGE_SIZE = (1080, 650)
 SOURCE_BOX_HEIGHT = 50
 SOURCE_BOX_Y = 650
 DIVIDER_Y = 700
 DIVIDER_THICKNESS = 5
-MUSTARD_YELLOW = "#fed500"
 PADDING = 20
 HEADLINE_WIDTH = 1040
 HEADLINE_MAX_HEIGHT = 220  # 830px to 1050px
@@ -26,21 +25,63 @@ DATE_SOURCE_Y = 1050
 AD_AREA_Y = 1100
 AD_AREA_SIZE = (1080, 100)
 LOGO_MAX_SIZE = (142, 71)  # Scaled down 10% from original (158, 79)
+SOURCE_LOGO_MAX_SIZE = (142, 71)  # Same as LOGO_MAX_SIZE for consistency
 AD_LOGO_MAX_SIZE = (225, 90)
-LOGO_POSITION = (480, 720)  # 20px below source box (ends at 700px), starts at x=480px
-MAP_OPACITY = 0.3  # Set to 0.3 for better visibility
+LOGO_POSITION = (480, 720)  # Existing logo position (center, below source box)
+SOURCE_LOGO_POSITION_Y = 100  # 100px from top
+SOURCE_LOGO_POSITION_X_OFFSET = 100  # 100px from right
+SOURCE_LOGO_OPACITY = 0.5  # 50% transparency
+MAP_OPACITY = 0.3
 SOURCE_BOX_OPACITY = 0.7
 MAP_BOX_WIDTH = 1080
 MAP_BOX_HEIGHT = 400
 MAP_BOX_X = 0
 MAP_BOX_Y = 700
 
-# Validate URL (Updated to handle query parameters)
+# Default colors
+DEFAULT_BRICK_RED = "#9E2A2F"
+DEFAULT_MUSTARD_YELLOW = "#fed500"
+
+# Initialize session state for colors
+if 'brick_red' not in st.session_state:
+    st.session_state.brick_red = DEFAULT_BRICK_RED
+if 'mustard_yellow' not in st.session_state:
+    st.session_state.mustard_yellow = DEFAULT_MUSTARD_YELLOW
+
+# Use session state colors
+BRICK_RED = st.session_state.brick_red
+MUSTARD_YELLOW = st.session_state.mustard_yellow
+
+# Custom CSS for progress bar and Reset button
+st.markdown(
+    f"""
+    <style>
+    /* Style the progress bar */
+    .stProgress > div > div > div > div {{
+        background-color: {BRICK_RED};
+    }}
+    /* Style the Reset button */
+    div.stButton > button[kind="primary"][key="reset_button_{st.session_state.get('generate_key', 0)}"] {{
+        background-color: {BRICK_RED};
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+    }}
+    div.stButton > button[kind="primary"][key="reset_button_{st.session_state.get('generate_key', 0)}"]:hover {{
+        background-color: #7A2326; /* Slightly darker shade for hover */
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Validate URL (Handles query parameters)
 def is_valid_url(url):
     regex = re.compile(
         r'^(https?://)'  # Scheme
         r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # Domain
-        r'(/[^#\s]*)?'  # Path (optional)
+        r'(/[^?\s]*)?'  # Path (optional)
         r'(\?[^#\s]*)?'  # Query parameters (optional)
         r'(\#.*)?$'  # Fragment (optional)
     )
@@ -60,7 +101,7 @@ def extract_main_domain(url):
     except Exception:
         return "Unknown"
 
-# Extract news data
+# Extract news data and source logo
 def extract_news_data(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
@@ -68,6 +109,7 @@ def extract_news_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Extract publication date
         date_tag = soup.find('meta', {'property': 'article:published_time'})
         date_str = date_tag['content'] if date_tag else None
         pub_date = None
@@ -77,41 +119,71 @@ def extract_news_data(url):
             except ValueError:
                 pub_date = None
 
+        # Extract headline
         headline_tag = soup.find('meta', {'property': 'og:title'})
         headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
+        # Extract image URL
         image_tag = soup.find('meta', {'property': 'og:image'})
         image_url = image_tag['content'] if image_tag else None
 
+        # Extract source name
         source_tag = soup.find('meta', {'property': 'og:site_name'})
         source = source_tag['content'] if source_tag else 'Source not found'
 
+        # Extract source logo
+        logo_url = None
+        # Try meta tag for logo
+        logo_meta_tag = soup.find('meta', {'property': 'og:logo'})
+        if logo_meta_tag and 'content' in logo_meta_tag.attrs:
+            logo_url = logo_meta_tag['content']
+        else:
+            # Fallback: Look for <img> tag with class containing "logo"
+            logo_img = soup.find('img', class_=lambda x: x and 'logo' in x.lower())
+            if logo_img and 'src' in logo_img.attrs:
+                logo_url = logo_img['src']
+                # Handle relative URLs
+                if logo_url.startswith('/'):
+                    parsed_url = urlparse(url)
+                    logo_url = f"{parsed_url.scheme}://{parsed_url.netloc}{logo_url}"
+
         main_domain = extract_main_domain(url)
-        return pub_date, headline, image_url, source, main_domain
+        return pub_date, headline, image_url, source, main_domain, logo_url
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Convert URL to base64 (Updated with better error handling)
-def url_to_base64(image_url):
-    try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'image/*',
-            'Referer': 'https://www.ittefaq.com.bd'  # Added Referer to mimic browser behavior
-        }
-        # Follow redirects and handle potential CORS issues
-        response = requests.get(image_url, headers=headers, timeout=10, allow_redirects=True)
-        response.raise_for_status()
-        content_type = response.headers.get('Content-Type', '')
-        if not content_type.startswith('image/'):
-            raise Exception("The URL does not point to a valid image file.")
-        image_data = BytesIO(response.content)
-        image = Image.open(image_data)
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-    except Exception as e:
-        raise Exception(f"Failed to fetch image from URL: {str(e)}. The server may be blocking the request, or the URL may not be publicly accessible.")
+# Convert URL to base64
+def url_to_base64(image_url, max_retries=2):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'image/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.ittefaq.com.bd'
+    }
+    for attempt in range(max_retries):
+        try:
+            print(f"Attempt {attempt + 1} to fetch {image_url}")
+            response = requests.get(image_url, headers=headers, timeout=15, allow_redirects=True)
+            print(f"Response status code: {response.status_code}")
+            response.raise_for_status()
+            content_type = response.headers.get('Content-Type', '')
+            print(f"Content-Type: {content_type}")
+            if not content_type.startswith('image/'):
+                raise Exception("The URL does not point to a valid image file.")
+            image_data = BytesIO(response.content)
+            image = Image.open(image_data)
+            buffered = BytesIO()
+            image.save(buffered, format="PNG")
+            print("Image fetched and converted to base64 successfully.")
+            return base64.b64encode(buffered.getvalue()).decode('utf-8')
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1 and (e.response is None or e.response.status_code in [429, 503]):
+                print(f"Retryable error: {str(e)}. Retrying...")
+                continue
+            print(f"Failed request details: {str(e)}, Status: {getattr(e.response, 'status_code', 'N/A')}, Text: {getattr(e.response, 'text', 'N/A')}")
+            raise Exception(f"Failed to fetch image from URL: {str(e)}. The server may be blocking the request, or the URL may not be publicly accessible.")
+    raise Exception("Failed to fetch image after maximum retries. The server may be unavailable or blocking the request.")
 
 # Process image (from URL, uploaded, or base64)
 def process_image(image_source, is_uploaded=False, is_base64=False):
@@ -159,6 +231,38 @@ def process_image(image_source, is_uploaded=False, is_base64=False):
         return image
     except Exception as e:
         raise Exception(f"Failed to process image: {str(e)}")
+
+# Process the source logo
+def process_source_logo(logo_url):
+    try:
+        # Fetch the logo using url_to_base64
+        logo_base64 = url_to_base64(logo_url)
+        if "," in logo_base64:
+            logo_base64 = logo_base64.split(",")[1]
+        logo_data = base64.b64decode(logo_base64)
+        logo = Image.open(BytesIO(logo_data)).convert("RGBA")
+
+        # Resize the logo to fit within SOURCE_LOGO_MAX_SIZE
+        logo_width, logo_height = logo.size
+        aspect = logo_width / logo_height
+        if logo_width > logo_height:
+            logo_width = min(logo_width, SOURCE_LOGO_MAX_SIZE[0])
+            logo_height = int(logo_width / aspect)
+        else:
+            logo_height = min(logo_height, SOURCE_LOGO_MAX_SIZE[1])
+            logo_width = int(logo_height * aspect)
+        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+
+        # Adjust opacity (50% transparency)
+        logo_data = logo.getdata()
+        new_data = []
+        for item in logo_data:
+            new_data.append((item[0], item[1], item[2], int(item[3] * SOURCE_LOGO_OPACITY)))
+        logo.putdata(new_data)
+
+        return logo, logo_width
+    except Exception as e:
+        raise Exception(f"Failed to process source logo: {str(e)}")
 
 # Process the world map for overlay
 def process_world_map(map_path):
@@ -302,10 +406,6 @@ def adjust_headline(headline, language, draw, max_width, max_height):
 
     print(f"Rendering headline with font size {best_font_size}, lines: {best_headline_lines}")
 
-    # Removed the semi-transparent background for headline
-    # background_box = (PADDING, headline_y_start, CANVAS_SIZE[0] - PADDING, headline_y_start + max_height)
-    # draw.rectangle(background_box, fill=(255, 255, 255, 127))  # 50% opacity
-
     for line in best_headline_lines:
         try:
             bbox = bangla_font_large.getbbox(line)
@@ -342,7 +442,7 @@ def convert_to_date(pub_date, language="Bengali"):
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
 
 # Create the news card
-def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
+def create_photo_card(headline, image_source, pub_date, main_domain, source_logo_url, language="Bengali", output_path="photo_card.png"):
     canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
@@ -369,7 +469,18 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-    # Add top logo
+    # Add source logo on top of the image (100px from top, 100px from right)
+    if source_logo_url:
+        try:
+            source_logo, logo_width = process_source_logo(source_logo_url)
+            # Position: 100px from right (right edge at x=980), 100px from top
+            x_position = CANVAS_SIZE[0] - SOURCE_LOGO_POSITION_X_OFFSET - logo_width
+            canvas.paste(source_logo, (x_position, SOURCE_LOGO_POSITION_Y), source_logo)
+        except Exception as e:
+            print(f"Warning: Could not load source logo: {str(e)}")
+            draw.text((CANVAS_SIZE[0] - SOURCE_LOGO_POSITION_X_OFFSET - 50, SOURCE_LOGO_POSITION_Y), "Source Logo Error", fill="red", font=regular_font)
+
+    # Add top logo (original logo at center)
     try:
         logo = Image.open("logo.png").convert("RGBA")
         logo_width, logo_height = logo.size
@@ -381,8 +492,6 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
             logo_height = min(logo_height, LOGO_MAX_SIZE[1])
             logo_width = int(logo_height * aspect)
         logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
-        
-        # Use the specified LOGO_POSITION
         canvas.paste(logo, LOGO_POSITION, logo)
     except FileNotFoundError:
         draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
@@ -397,9 +506,6 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     text_x = (CANVAS_SIZE[0] - text_width) // 2
     text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5
     draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
-
-    # Remove divider
-    # draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=MUSTARD_YELLOW)
 
     # Headline
     if "not found" in headline.lower():
@@ -440,12 +546,13 @@ if 'language' not in st.session_state:
 if 'generate_key' not in st.session_state:
     st.session_state.generate_key = 0
 
-# Reset button
-if st.button("Reset"):
-    st.session_state.generate_key += 1
-
-# Option to generate without URL
-skip_url = st.checkbox("Generate card without URL", key=f"skip_url_{st.session_state.generate_key}")
+# Reset button and No URL checkbox in columns
+col1, col2 = st.columns([1, 3])
+with col1:
+    if st.button("Reset", key=f"reset_button_{st.session_state.generate_key}"):
+        st.session_state.generate_key += 1
+with col2:
+    skip_url = st.checkbox("No URL", key=f"skip_url_{st.session_state.generate_key}")
 
 # 1. URL input
 url = st.text_input(
@@ -473,80 +580,52 @@ if uploaded_image:
     image_source = uploaded_image
     st.success("Custom image uploaded!")
 
-# 4. Copy and Paste image option
-st.markdown("**Copy and Paste Image (Optional)**")
-st.markdown("Copy an image from your clipboard or right-click an image online and select 'Copy Image Address', then paste here. The app will process it automatically.")
-pasted_image = st.text_area(
-    "Paste image or URL here:",
-    placeholder="e.g., https://example.com/image.jpg (pasted from 'Copy Image Address')",
-    key=f"pasted_image_{st.session_state.generate_key}"
-)
-if pasted_image:
-    try:
-        # Assume pasted content is either a URL or needs to be validated as an image source
-        if pasted_image.startswith("http"):
-            if is_valid_url(pasted_image):
-                # Convert URL to base64 automatically
-                base64_data = url_to_base64(pasted_image)
-                image_source = f"data:image/png;base64,{base64_data}"
-                st.success("Pasted image URL processed successfully!")
-            else:
-                st.error("Invalid image URL: Please provide a valid URL (e.g., https://example.com/image.jpg).")
-                pasted_image = None
-        else:
-            # Attempt to treat as a URL if it contains a domain-like pattern, otherwise fail
-            if re.search(r'[a-zA-Z0-9-]+\.[a-zA-Z]{2,}', pasted_image):
-                try:
-                    base64_data = url_to_base64(pasted_image)
-                    image_source = f"data:image/png;base64,{base64_data}"
-                    st.success("Pasted image URL processed successfully!")
-                except Exception as e:
-                    st.error(f"Invalid image URL: The pasted URL does not point to a valid image. Please use 'Copy Image Address' from a browser. Error: {str(e)}")
-                    pasted_image = None
-            else:
-                st.error("Invalid input: Please copy an image or its address and paste it here. Ensure the URL is valid or try uploading an image.")
-                pasted_image = None
-    except Exception as e:
-        st.error(f"Failed to process pasted image: {str(e)}")
-        pasted_image = None
+# 4. Color customization with reset option
+with st.expander("Customize Colors", expanded=False):
+    st.session_state.brick_red = st.color_picker("Main Color (Brick Red)", st.session_state.brick_red, key=f"brick_red_{st.session_state.generate_key}")
+    st.session_state.mustard_yellow = st.color_picker("Secondary Color (Mustard Yellow)", st.session_state.mustard_yellow, key=f"mustard_yellow_{st.session_state.generate_key}")
+    if st.button("Reset Customizations"):
+        st.session_state.brick_red = DEFAULT_BRICK_RED
+        st.session_state.mustard_yellow = DEFAULT_MUSTARD_YELLOW
+        st.experimental_rerun()
 
 # 5. Option to override date
-st.markdown("**Override Publication Date (Optional)**")
-override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
-if override_date:
-    manual_date = st.date_input(
-        "Select the publication date:",
-        value=datetime.date(2025, 5, 25),  # Updated to today's date
-        min_value=datetime.date(1900, 1, 1),
-        max_value=datetime.date(2025, 5, 25),  # Current date as max
-        key=f"date_input_{st.session_state.generate_key}"
-    )
+with st.expander("Override Publication Date", expanded=False):
+    override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
+    if override_date:
+        manual_date = st.date_input(
+            "Select the publication date:",
+            value=datetime.date(2025, 5, 27),  # Updated to today's date
+            min_value=datetime.date(1900, 1, 1),
+            max_value=datetime.date(2025, 5, 27),  # Current date as max
+            key=f"date_input_{st.session_state.generate_key}"
+        )
 
 # 6. Option to override source
-st.markdown("**Override Source (Optional)**")
-override_source = st.checkbox("Manually set the source", key=f"override_source_{st.session_state.generate_key}")
-if override_source:
-    source_options = [
-        "প্রথম আলো", "কালের কন্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
-        "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পুর্বকোণ", "দৈনিক আজাদী",
-        "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ",
-        "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
-    ]
-    manual_source = st.selectbox(
-        "Select the source:",
-        options=source_options,
-        index=0,  # Default to "প্রথম আলো"
-        key=f"source_input_{st.session_state.generate_key}"
-    )
+with st.expander("Override Source", expanded=False):
+    override_source = st.checkbox("Manually set the source", key=f"override_source_{st.session_state.generate_key}")
+    if override_source:
+        source_options = [
+            "প্রথম আলো", "কালের কন্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
+            "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পুর্বকোণ", "দৈনিক আজাদী",
+            "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ",
+            "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
+        ]
+        manual_source = st.selectbox(
+            "Select the source:",
+            options=source_options,
+            index=0,  # Default to "প্রথম আলো"
+            key=f"source_input_{st.session_state.generate_key}"
+        )
 
-# 7. Language selection dropdown
-st.markdown("**Select Language**")
-selected_language = st.selectbox(
-    "Choose a language:",
-    options=["Bengali", "English"],
-    index=0 if st.session_state.language == "Bengali" else 1,
-    key=f"language_select_{st.session_state.generate_key}"
-)
+# 7. Language selection in collapsible section
+with st.expander("Language Settings", expanded=False):
+    selected_language = st.selectbox(
+        "Choose a language:",
+        options=["Bengali", "English"],
+        index=0 if st.session_state.language == "Bengali" else 1,
+        key=f"language_select_{st.session_state.generate_key}"
+    )
 
 # Update session state when language changes
 if selected_language != st.session_state.language:
@@ -556,41 +635,45 @@ if selected_language != st.session_state.language:
 # Generate button
 if st.button("Generate Photo Card"):
     if not skip_url and not url:
-        st.warning("Please enter a valid URL or check 'Generate card without URL'.")
+        st.warning("Please enter a valid URL or check 'No URL'.")
     else:
-        with st.spinner("Generating photo card..."):
-            try:
-                if skip_url:
-                    # Set defaults when skipping URL
-                    pub_date = datetime.datetime(2025, 5, 25)  # Current date
-                    headline = "Headline not found"
-                    image_url = None
-                    source = "Source not found"
-                    main_domain = "Unknown"
-                else:
-                    # Extract data from URL
-                    pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+        progress_bar = st.progress(0)
+        for i in range(100):
+            time.sleep(0.02)  # Simulate progress
+            progress_bar.progress(i + 1)
+        try:
+            if skip_url:
+                # Set defaults when skipping URL
+                pub_date = datetime.datetime(2025, 5, 27, 20, 5)  # Current date and time
+                headline = "Headline not found"
+                image_url = None
+                source = "Source not found"
+                main_domain = "Unknown"
+                source_logo_url = None
+            else:
+                # Extract data from URL, including source logo
+                pub_date, headline, image_url, source, main_domain, source_logo_url = extract_news_data(url)
 
-                # Use manual date if override is enabled
-                if override_date:
-                    pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
+            # Use manual date if override is enabled
+            if override_date:
+                pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
 
-                # Use manual source if override is enabled
-                if override_source:
-                    main_domain = manual_source
+            # Use manual source if override is enabled
+            if override_source:
+                main_domain = manual_source
 
-                # Use custom headline if provided, otherwise use extracted or default
-                final_headline = custom_headline if custom_headline else headline
+            # Use custom headline if provided, otherwise use extracted or default
+            final_headline = custom_headline if custom_headline else headline
 
-                # Use uploaded or pasted image if provided, otherwise try URL image
-                if not image_source and image_url:
-                    image_source = image_url
+            # Use uploaded image if provided, otherwise try URL image
+            if not image_source and image_url:
+                image_source = image_url
 
-                output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
-                st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
-                with open(output_path, "rb") as file:
-                    st.download_button("Download Photo Card", file, file_name="photo_card.png")
-                st.session_state.generate_key += 1
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-                st.session_state.generate_key += 1
+            output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, source_logo_url, language=st.session_state.language)
+            st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
+            with open(output_path, "rb") as file:
+                st.download_button("Download Photo Card", file, file_name="photo_card.png")
+            st.session_state.generate_key += 1
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+            st.session_state.generate_key += 1
