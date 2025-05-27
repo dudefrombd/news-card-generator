@@ -13,11 +13,9 @@ import time
 
 # Constants
 CANVAS_SIZE = (1080, 1200)
-IMAGE_SIZE = (1080, 650)
-SOURCE_BOX_HEIGHT = 50
-SOURCE_BOX_Y = 650
-DIVIDER_Y = 700
-DIVIDER_THICKNESS = 5
+IMAGE_SIZE = (1080, 700)
+LOGO_BOX_HEIGHT = 120
+LOGO_BOX_Y = 580
 PADDING = 20
 HEADLINE_WIDTH = 1040
 HEADLINE_MAX_HEIGHT = 220  # 830px to 1050px
@@ -26,27 +24,36 @@ AD_AREA_Y = 1100
 AD_AREA_SIZE = (1080, 100)
 LOGO_MAX_SIZE = (142, 71)  # Scaled down 10% from original (158, 79)
 AD_LOGO_MAX_SIZE = (225, 90)
-LOGO_POSITION = (480, 720)  # Existing logo position (center, below source box)
 MAP_OPACITY = 0.3
 SOURCE_BOX_OPACITY = 0.7
 MAP_BOX_WIDTH = 1080
 MAP_BOX_HEIGHT = 400
 MAP_BOX_X = 0
 MAP_BOX_Y = 700
+DIVIDER_Y = 780  # 10px below comment_text at y=720
+DIVIDER_THICKNESS = 2
 
-# Default colors
-DEFAULT_BRICK_RED = "#9E2A2F"
-DEFAULT_MUSTARD_YELLOW = "#fed500"
+# Primary, secondary, and text default colors
+PRIMARY_DEFAULT_COLOR = "#9E2A2F"
+SECONDARY_DEFAULT_COLOR = "#fed500"
+DEFAULT_TEXT_COLOR = "#FFFFFF"
+DEFAULT_SECONDARY_TEXT_COLOR = SECONDARY_DEFAULT_COLOR
 
 # Initialize session state for colors
-if 'brick_red' not in st.session_state:
-    st.session_state.brick_red = DEFAULT_BRICK_RED
-if 'mustard_yellow' not in st.session_state:
-    st.session_state.mustard_yellow = DEFAULT_MUSTARD_YELLOW
+if 'primary_color' not in st.session_state:
+    st.session_state.primary_color = PRIMARY_DEFAULT_COLOR
+if 'secondary_color' not in st.session_state:
+    st.session_state.secondary_color = SECONDARY_DEFAULT_COLOR
+if 'text_color' not in st.session_state:
+    st.session_state.text_color = DEFAULT_TEXT_COLOR
+if 'secondary_text_color' not in st.session_state:
+    st.session_state.secondary_text_color = DEFAULT_SECONDARY_TEXT_COLOR
 
 # Use session state colors
-BRICK_RED = st.session_state.brick_red
-MUSTARD_YELLOW = st.session_state.mustard_yellow
+PRIMARY_COLOR = st.session_state.primary_color
+SECONDARY_COLOR = st.session_state.secondary_color
+TEXT_COLOR = st.session_state.text_color
+SECONDARY_TEXT_COLOR = st.session_state.secondary_text_color
 
 # Custom CSS for progress bar and Reset button
 st.markdown(
@@ -54,11 +61,11 @@ st.markdown(
     <style>
     /* Style the progress bar */
     .stProgress > div > div > div > div {{
-        background-color: {BRICK_RED};
+        background-color: {PRIMARY_COLOR};
     }}
     /* Style the Reset button */
     div.stButton > button[kind="primary"][key="reset_button_{st.session_state.get('generate_key', 0)}"] {{
-        background-color: {BRICK_RED};
+        background-color: {PRIMARY_COLOR};
         color: white;
         border: none;
         padding: 8px 16px;
@@ -184,15 +191,10 @@ def process_image(image_source, is_uploaded=False, is_base64=False):
             image_data = base64.b64decode(image_source)
             image = Image.open(BytesIO(image_data))
 
-        # Crop bottom 15%
-        width, height = image.size
-        crop_height = int(height * 0.15)
-        new_height = height - crop_height
-        image = image.crop((0, 0, width, new_height))
-
         # Resize to fill the image area while preserving aspect ratio
+        width, height = image.size
         target_width, target_height = IMAGE_SIZE
-        aspect_ratio = width / new_height
+        aspect_ratio = width / height
         target_aspect = target_width / target_height
 
         if aspect_ratio > target_aspect:
@@ -391,14 +393,14 @@ def convert_to_date(pub_date, language="Bengali"):
 
 # Create the news card
 def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
-    canvas = Image.new("RGB", CANVAS_SIZE, BRICK_RED)
+    canvas = Image.new("RGB", CANVAS_SIZE, PRIMARY_COLOR)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
 
     # Add map overlay
     try:
         world_map = process_world_map("world-map.png")
-        canvas = Image.new("RGBA", CANVAS_SIZE, BRICK_RED)
+        canvas = Image.new("RGBA", CANVAS_SIZE, PRIMARY_COLOR)
         canvas.paste(world_map, (MAP_BOX_X, MAP_BOX_Y), world_map)
         canvas = canvas.convert("RGB")
         draw = ImageDraw.Draw(canvas)
@@ -417,9 +419,17 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-    # Add top logo (original logo at center)
+    # Logo box background with semi-transparent fill (drawn before the logo)
+    secondary_rgba = tuple(int(SECONDARY_COLOR[i:i+2], 16) for i in (1, 3, 5)) + (int(255 * SOURCE_BOX_OPACITY),)
+    draw.rectangle((0, LOGO_BOX_Y, CANVAS_SIZE[0], LOGO_BOX_Y + LOGO_BOX_HEIGHT), fill=secondary_rgba)
+
+    # Add top logo (drawn after the logo box to appear on top)
     try:
-        logo = Image.open("logo.png").convert("RGBA")
+        logo_path = "logo.png"
+        print(f"Attempting to load logo from: {os.path.abspath(logo_path)}")
+        if not os.path.exists(logo_path):
+            raise FileNotFoundError(f"Logo file not found at {os.path.abspath(logo_path)}")
+        logo = Image.open(logo_path).convert("RGBA")
         logo_width, logo_height = logo.size
         aspect = logo_width / logo_height
         if logo_width > logo_height:
@@ -429,20 +439,29 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
             logo_height = min(logo_height, LOGO_MAX_SIZE[1])
             logo_width = int(logo_height * aspect)
         logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
-        canvas.paste(logo, LOGO_POSITION, logo)
-    except FileNotFoundError:
-        draw.text((LOGO_POSITION[0], LOGO_POSITION[1]), "Logo Missing", fill="red", font=regular_font)
+        # Center the logo on the x-axis and middle of LOGO_BOX on the y-axis
+        logo_x = (CANVAS_SIZE[0] - logo_width) // 2
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2) - (logo_height // 2)
+        logo_position = (logo_x, logo_y)
+        canvas.paste(logo, logo_position, logo)
+        print(f"Logo pasted at {logo_position} with size {logo_width}x{logo_height}")
+    except FileNotFoundError as e:
+        print(f"Error: {str(e)}")
+        logo_x = (CANVAS_SIZE[0] - 100) // 2  # Approximate width for error text
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)  # Center y-position for error text
+        draw.text((logo_x, logo_y), "Logo Missing", fill="red", font=regular_font)
+    except Exception as e:
+        print(f"Error loading logo: {str(e)}")
+        logo_x = (CANVAS_SIZE[0] - 100) // 2  # Approximate width for error text
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)  # Center y-position for error text
+        draw.text((logo_x, logo_y), "Logo Load Error", fill="red", font=regular_font)
 
-    # Source text background with semi-transparent fill
-    mustard_rgba = tuple(int(MUSTARD_YELLOW[i:i+2], 16) for i in (1, 3, 5)) + (int(255 * SOURCE_BOX_OPACITY),)
-    draw.rectangle((0, SOURCE_BOX_Y, CANVAS_SIZE[0], SOURCE_BOX_Y + SOURCE_BOX_HEIGHT), fill=mustard_rgba)
+    # Source text at comment's original position with customizable text color
     source_text = f"Source: {main_domain}"
     text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
     text_width = text_bbox[2] - text_bbox[0]
-    text_height = text_bbox[3] - text_bbox[1]
-    text_x = (CANVAS_SIZE[0] - text_width) // 2
-    text_y = SOURCE_BOX_Y + (SOURCE_BOX_HEIGHT - text_height) // 2 - 5
-    draw.text((text_x, text_y), source_text, fill="black", font=regular_font)
+    text_x = CANVAS_SIZE[0] - PADDING - text_width
+    draw.text((text_x, DATE_SOURCE_Y), source_text, fill=TEXT_COLOR, font=regular_font)
 
     # Headline
     if "not found" in headline.lower():
@@ -450,15 +469,20 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     headline = headline.encode('utf-8').decode('utf-8')
     adjust_headline(headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT)
 
-    # Date and comment
+    # Date with customizable text color
     date_str = convert_to_date(pub_date, language)
-    draw.text((PADDING, DATE_SOURCE_Y), date_str, fill="white", font=bangla_font_small)
+    draw.text((PADDING, DATE_SOURCE_Y), date_str, fill=TEXT_COLOR, font=bangla_font_small)
 
+    # Comment text at y=720, centered, with bold font and larger size
     comment_text = "বিস্তারিত কমেন্টে" if language == "Bengali" else "More in comments"
-    text_bbox = draw.textbbox((0, 0), comment_text, font=bangla_font_small)
+    bold_font = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 31)  # 20% larger than 26px
+    text_bbox = draw.textbbox((0, 0), comment_text, font=bold_font)
     text_width = text_bbox[2] - text_bbox[0]
-    text_x = CANVAS_SIZE[0] - PADDING - text_width
-    draw.text((text_x, DATE_SOURCE_Y), comment_text, fill="white", font=bangla_font_small)
+    text_x = (CANVAS_SIZE[0] - text_width) // 2  # Center horizontally
+    draw.text((text_x, 720), comment_text, fill=SECONDARY_TEXT_COLOR, font=bold_font)
+
+    # Add divider 60px below comment_text
+    draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=SECONDARY_COLOR)
 
     # Ad area
     try:
@@ -519,11 +543,15 @@ if uploaded_image:
 
 # 4. Color customization with reset option
 with st.expander("Customize Colors", expanded=False):
-    st.session_state.brick_red = st.color_picker("Main Color (Brick Red)", st.session_state.brick_red, key=f"brick_red_{st.session_state.generate_key}")
-    st.session_state.mustard_yellow = st.color_picker("Secondary Color (Mustard Yellow)", st.session_state.mustard_yellow, key=f"mustard_yellow_{st.session_state.generate_key}")
+    st.session_state.primary_color = st.color_picker("Primary Color (Brick Red)", st.session_state.primary_color, key=f"primary_color_{st.session_state.generate_key}")
+    st.session_state.secondary_color = st.color_picker("Secondary Color (Mustard Yellow)", st.session_state.secondary_color, key=f"secondary_color_{st.session_state.generate_key}")
+    st.session_state.text_color = st.color_picker("Text Color (Date, Source, Comment)", st.session_state.text_color, key=f"text_color_{st.session_state.generate_key}")
+    st.session_state.secondary_text_color = st.color_picker("Secondary Text Color (Comment)", st.session_state.secondary_text_color, key=f"secondary_text_color_{st.session_state.generate_key}")
     if st.button("Reset Customizations"):
-        st.session_state.brick_red = DEFAULT_BRICK_RED
-        st.session_state.mustard_yellow = DEFAULT_MUSTARD_YELLOW
+        st.session_state.primary_color = PRIMARY_DEFAULT_COLOR
+        st.session_state.secondary_color = SECONDARY_DEFAULT_COLOR
+        st.session_state.text_color = DEFAULT_TEXT_COLOR
+        st.session_state.secondary_text_color = DEFAULT_SECONDARY_TEXT_COLOR
         st.experimental_rerun()
 
 # 5. Option to override date
@@ -532,9 +560,9 @@ with st.expander("Override Publication Date", expanded=False):
     if override_date:
         manual_date = st.date_input(
             "Select the publication date:",
-            value=datetime.date(2025, 5, 27),  # Updated to today's date
+            value=datetime.date(2025, 5, 28),  # Updated to today's date
             min_value=datetime.date(1900, 1, 1),
-            max_value=datetime.date(2025, 5, 27),  # Current date as max
+            max_value=datetime.date(2025, 5, 28),  # Current date as max
             key=f"date_input_{st.session_state.generate_key}"
         )
 
@@ -581,7 +609,7 @@ if st.button("Generate Photo Card"):
         try:
             if skip_url:
                 # Set defaults when skipping URL
-                pub_date = datetime.datetime(2025, 5, 27, 22, 56)  # Current date and time
+                pub_date = datetime.datetime(2025, 5, 28, 1, 38)  # Current date and time
                 headline = "Headline not found"
                 image_url = None
                 source = "Source not found"
