@@ -252,6 +252,26 @@ def process_world_map(map_path):
     except Exception as e:
         raise Exception(f"Failed to process world map: {str(e)}")
 
+# Process the logo box background
+def process_logo_box_bg(bg_path):
+    try:
+        bg_image = Image.open(bg_path).convert("RGBA")
+        target_width, target_height = CANVAS_SIZE[0], LOGO_BOX_HEIGHT  # 1080x120
+
+        # Resize to match logo box dimensions
+        bg_image = bg_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+        # Adjust opacity (70% transparency)
+        bg_data = bg_image.getdata()
+        new_data = []
+        for item in bg_data:
+            new_data.append((item[0], item[1], item[2], int(item[3] * SOURCE_BOX_OPACITY)))
+        bg_image.putdata(new_data)
+
+        return bg_image
+    except Exception as e:
+        raise Exception(f"Failed to process logo box background: {str(e)}")
+
 # Load fonts with simplified logic and fallback
 def load_fonts(language="Bengali", font_size=48):
     bangla_font_small = bangla_font_large = regular_font = None
@@ -419,9 +439,14 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-    # Logo box background with semi-transparent fill (drawn before the logo)
+    # Logo box background with semi-transparent color and overlay
     secondary_rgba = tuple(int(SECONDARY_COLOR[i:i+2], 16) for i in (1, 3, 5)) + (int(255 * SOURCE_BOX_OPACITY),)
     draw.rectangle((0, LOGO_BOX_Y, CANVAS_SIZE[0], LOGO_BOX_Y + LOGO_BOX_HEIGHT), fill=secondary_rgba)
+    try:
+        logo_box_bg = process_logo_box_bg("logo-box-bg.png")
+        canvas.paste(logo_box_bg, (0, LOGO_BOX_Y), logo_box_bg)
+    except Exception as e:
+        print(f"Warning: Could not load logo box background: {str(e)}")
 
     # Add top logo (drawn after the logo box to appear on top)
     try:
@@ -609,7 +634,7 @@ if st.button("Generate Photo Card"):
         try:
             if skip_url:
                 # Set defaults when skipping URL
-                pub_date = datetime.datetime(2025, 5, 28, 1, 38)  # Current date and time
+                pub_date = datetime.datetime(2025, 5, 28, 12, 47)  # Current date and time
                 headline = "Headline not found"
                 image_url = None
                 source = "Source not found"
