@@ -33,64 +33,29 @@ MAP_BOX_Y = 700
 DIVIDER_Y = 780  # 10px below comment_text at y=720
 DIVIDER_THICKNESS = 2
 
-# Primary, secondary, and text default colors
-PRIMARY_DEFAULT_COLOR = "#9E2A2F"
-SECONDARY_DEFAULT_COLOR = "#fed500"
-DEFAULT_TEXT_COLOR = "#FFFFFF"
-DEFAULT_SECONDARY_TEXT_COLOR = SECONDARY_DEFAULT_COLOR
+# Theme Colors
+PRIMARY_ACCENT_COLOR = "#9f2d32"  # Brick red
+SECONDARY_ACCENT_COLOR = "#3c3c3c"  # Dark grey
+SUCCESS_COLOR = "#28A745"  # Green
+ERROR_COLOR = "#DC3545"  # Red
+NEUTRAL_LIGHT = "#E9ECEF"  # Light grey for borders
+NEUTRAL_MEDIUM = "#CED4DA"  # Medium grey for disabled
+TEXT_LIGHT = "#f54149"  # Reddish color
+TEXT_DARK = "#3c3c3c"  # Dark grey for secondary text
+BACKGROUND_LIGHT = "#F8F9FA"  # Very light grey
+CONTENT_BG = "#FFFFFF"  # Pure white
 
-# Initialize session state for colors
-if 'primary_color' not in st.session_state:
-    st.session_state.primary_color = PRIMARY_DEFAULT_COLOR
-if 'secondary_color' not in st.session_state:
-    st.session_state.secondary_color = SECONDARY_DEFAULT_COLOR
-if 'text_color' not in st.session_state:
-    st.session_state.text_color = DEFAULT_TEXT_COLOR
-if 'secondary_text_color' not in st.session_state:
-    st.session_state.secondary_text_color = DEFAULT_SECONDARY_TEXT_COLOR
-
-# Use session state colors
-PRIMARY_COLOR = st.session_state.primary_color
-SECONDARY_COLOR = st.session_state.secondary_color
-TEXT_COLOR = st.session_state.text_color
-SECONDARY_TEXT_COLOR = st.session_state.secondary_text_color
-
-# Custom CSS for progress bar and Reset button
-st.markdown(
-    f"""
-    <style>
-    /* Style the progress bar */
-    .stProgress > div > div > div > div {{
-        background-color: {PRIMARY_COLOR};
-    }}
-    /* Style the Reset button */
-    div.stButton > button[kind="primary"][key="reset_button_{st.session_state.get('generate_key', 0)}"] {{
-        background-color: {PRIMARY_COLOR};
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 5px;
-    }}
-    div.stButton > button[kind="primary"][key="reset_button_{st.session_state.get('generate_key', 0)}"]:hover {{
-        background-color: #7A2326; /* Slightly darker shade for hover */
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# Validate URL (Handles query parameters)
+# Functions
 def is_valid_url(url):
     regex = re.compile(
         r'^(https?://)'  # Scheme
         r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # Domain
         r'(/[^?\s]*)?'  # Path (optional)
-        r'(\?[^#\s]*)?'  # Query parameters (optional)
+        r'(\?[^?\s]*)?'  # Query parameters (optional)
         r'(\#.*)?$'  # Fragment (optional)
     )
     return re.match(regex, url) is not None
 
-# Extract main domain from URL
 def extract_main_domain(url):
     try:
         parsed_url = urlparse(url)
@@ -104,7 +69,6 @@ def extract_main_domain(url):
     except Exception:
         return "Unknown"
 
-# Extract news data
 def extract_news_data(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
     try:
@@ -112,7 +76,6 @@ def extract_news_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extract publication date
         date_tag = soup.find('meta', {'property': 'article:published_time'})
         date_str = date_tag['content'] if date_tag else None
         pub_date = None
@@ -122,15 +85,12 @@ def extract_news_data(url):
             except ValueError:
                 pub_date = None
 
-        # Extract headline
         headline_tag = soup.find('meta', {'property': 'og:title'})
         headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
-        # Extract image URL
         image_tag = soup.find('meta', {'property': 'og:image'})
         image_url = image_tag['content'] if image_tag else None
 
-        # Extract source name
         source_tag = soup.find('meta', {'property': 'og:site_name'})
         source = source_tag['content'] if source_tag else 'Source not found'
 
@@ -139,7 +99,6 @@ def extract_news_data(url):
     except Exception as e:
         raise Exception(f"Failed to extract news data: {str(e)}")
 
-# Convert URL to base64
 def url_to_base64(image_url, max_retries=2):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -172,26 +131,22 @@ def url_to_base64(image_url, max_retries=2):
             raise Exception(f"Failed to fetch image from URL: {str(e)}. The server may be blocking the request, or the URL may not be publicly accessible.")
     raise Exception("Failed to fetch image after maximum retries. The server may be unavailable or blocking the request.")
 
-# Process image (from URL, uploaded, or base64)
 def process_image(image_source, is_uploaded=False, is_base64=False):
     try:
         if is_uploaded:
             image = Image.open(image_source)
         elif is_base64:
-            # Remove the base64 prefix if present (e.g., "data:image/png;base64,")
             if "," in image_source:
                 image_source = image_source.split(",")[1]
             image_data = base64.b64decode(image_source)
             image = Image.open(BytesIO(image_data))
         else:
-            # Assume it's a URL and convert to base64 first
             image_source = url_to_base64(image_source)
             if "," in image_source:
                 image_source = image_source.split(",")[1]
             image_data = base64.b64decode(image_source)
             image = Image.open(BytesIO(image_data))
 
-        # Resize to fill the image area while preserving aspect ratio
         width, height = image.size
         target_width, target_height = IMAGE_SIZE
         aspect_ratio = width / height
@@ -214,100 +169,73 @@ def process_image(image_source, is_uploaded=False, is_base64=False):
     except Exception as e:
         raise Exception(f"Failed to process image: {str(e)}")
 
-# Process the world map for overlay
 def process_world_map(map_path):
     try:
         map_image = Image.open(map_path).convert("RGBA")
-        width, height = map_image.size  # 1080x512
+        width, height = map_image.size
 
-        # Calculate aspect ratio
-        aspect_ratio = width / height  # 1080/512 ≈ 2.11
-        target_width, target_height = MAP_BOX_WIDTH, MAP_BOX_HEIGHT  # 1080x400
-        target_aspect = target_width / target_height  # 1080/400 = 2.7
+        aspect_ratio = width / height
+        target_width, target_height = MAP_BOX_WIDTH, MAP_BOX_HEIGHT
+        target_aspect = target_width / target_height
 
-        # Scale the map to fit the box width, preserving aspect ratio
-        new_width = target_width  # 1080px
-        new_height = int(new_width / aspect_ratio)  # 1080 * 512 / 1080 = 512px
+        new_width = target_width
+        new_height = int(new_width / aspect_ratio)
         map_image = map_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-        # Crop to fit the target height (400px), centering vertically
         if new_height > target_height:
             top = (new_height - target_height) // 2
             map_image = map_image.crop((0, top, target_width, top + target_height))
         else:
-            # If the height is less than 400px, center the map
             new_map = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
             y_offset = (target_height - new_height) // 2
             new_map.paste(map_image, (0, y_offset))
             map_image = new_map
 
-        # Adjust opacity (30% transparency)
         map_data = map_image.getdata()
-        new_data = []
-        for item in map_data:
-            new_data.append((item[0], item[1], item[2], int(item[3] * MAP_OPACITY)))
+        new_data = [(item[0], item[1], item[2], int(item[3] * MAP_OPACITY)) for item in map_data]
         map_image.putdata(new_data)
 
         return map_image
     except Exception as e:
         raise Exception(f"Failed to process world map: {str(e)}")
 
-# Process the logo box background
 def process_logo_box_bg(bg_path):
     try:
         bg_image = Image.open(bg_path).convert("RGBA")
-        target_width, target_height = CANVAS_SIZE[0], LOGO_BOX_HEIGHT  # 1080x120
-
-        # Resize to match logo box dimensions
+        target_width, target_height = CANVAS_SIZE[0], LOGO_BOX_HEIGHT
         bg_image = bg_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
-        # Adjust opacity (70% transparency)
         bg_data = bg_image.getdata()
-        new_data = []
-        for item in bg_data:
-            new_data.append((item[0], item[1], item[2], int(item[3] * SOURCE_BOX_OPACITY)))
+        new_data = [(item[0], item[1], item[2], int(item[3] * SOURCE_BOX_OPACITY)) for item in bg_data]
         bg_image.putdata(new_data)
 
         return bg_image
     except Exception as e:
         raise Exception(f"Failed to process logo box background: {str(e)}")
 
-# Load fonts with simplified logic and fallback
 def load_fonts(language="Bengali", font_size=48):
     bangla_font_small = bangla_font_large = regular_font = None
 
-    # Attempt to load Noto Serif Bengali Bold
     try:
         bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", font_size)
-        print(f"Successfully loaded NotoSerifBengali-Bold.ttf for size {font_size}")
     except Exception as e:
-        print(f"Failed to load NotoSerifBengali-Bold.ttf: {str(e)}")
         try:
-            # Fallback to a system font that supports Unicode
             bangla_font_large = ImageFont.truetype("Arial Unicode MS.ttf", font_size)
-            print(f"Fallback: Successfully loaded Arial Unicode MS.ttf for size {font_size}")
         except Exception as e2:
-            print(f"Fallback failed: {str(e2)}. Using default font.")
             bangla_font_large = ImageFont.load_default()
 
-    # Load regular font for other text
     try:
         bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 26)
         regular_font = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)
-        print("Successfully loaded NotoSerifBengali-Regular.ttf")
     except Exception as e:
-        print(f"Failed to load NotoSerifBengali-Regular.ttf: {str(e)}")
         try:
             bangla_font_small = ImageFont.truetype("Arial Unicode MS.ttf", 26)
             regular_font = ImageFont.truetype("Arial Unicode MS.ttf", 24)
-            print("Fallback: Successfully loaded Arial Unicode MS.ttf for regular font")
         except Exception as e2:
-            print(f"Fallback failed: {str(e2)}. Using default font.")
             bangla_font_small = regular_font = ImageFont.load_default()
 
     return bangla_font_small, bangla_font_large, regular_font
 
-# Adjust headline layout with improved wrapping and debugging
 def adjust_headline(headline, language, draw, max_width, max_height):
     font_sizes = [72, 68, 64, 60, 56, 52, 48]
     best_font_size = font_sizes[0]
@@ -315,29 +243,22 @@ def adjust_headline(headline, language, draw, max_width, max_height):
     best_spacing = 0
     headline_y_start = 830
 
-    print(f"Processing headline: {headline}")
-
     for size in font_sizes:
         bangla_font_small, bangla_font_large, _ = load_fonts(language, size)
-        # Adjust wrapping width to be stricter
-        wrap_width = int(max_width / (size * 0.5))  # Using 0.5 divisor
+        wrap_width = int(max_width / (size * 0.5))
         headline_wrapped = textwrap.wrap(headline, width=wrap_width)
-        print(f"Wrapped headline into {len(headline_wrapped)} lines with wrap_width={wrap_width}")
         total_height = 0
         headline_lines = []
 
         if not headline_wrapped:
-            print("Warning: Headline wrapping produced no lines. Using original headline.")
             headline_wrapped = [headline]
 
         for line in headline_wrapped:
             bbox = bangla_font_large.getbbox(line)
             line_width = bbox[2] - bbox[0]
             line_height = bbox[3] - bbox[1]
-            print(f"Line '{line}' width: {line_width}, max allowed: {max_width}")
             if line_width > max_width:
-                print(f"Line '{line}' exceeds max width {max_width} at font size {size}. Skipping this size.")
-                headline_lines = []  # Reset to force a smaller font size
+                headline_lines = []
                 break
             headline_lines.append(line)
             total_height += line_height
@@ -345,57 +266,34 @@ def adjust_headline(headline, language, draw, max_width, max_height):
         spacing = int(size * 1.2)
         total_height += (len(headline_lines) - 1) * spacing
 
-        print(f"Font size {size}: {len(headline_lines)} lines, total height {total_height}")
-
         if total_height <= max_height and len(headline_lines) > 0:
             best_font_size = size
             best_headline_lines = headline_lines
             best_spacing = spacing
             break
 
-    # Fallback if no suitable font size is found
     if not best_headline_lines:
-        print("No suitable font size found. Forcing headline to fit with smallest font size.")
         bangla_font_small, bangla_font_large, _ = load_fonts(language, font_sizes[-1])
         wrap_width = int(max_width / (font_sizes[-1] * 0.5))
         headline_wrapped = textwrap.wrap(headline, width=wrap_width)
-        best_headline_lines = []
-        for line in headline_wrapped[:3]:  # Limit to 3 lines max
-            bbox = bangla_font_large.getbbox(line)
-            line_width = bbox[2] - bbox[0]
-            if line_width <= max_width:
-                best_headline_lines.append(line)
+        best_headline_lines = [line for line in headline_wrapped[:3] if bangla_font_large.getbbox(line)[2] - bangla_font_large.getbbox(line)[0] <= max_width]
         if not best_headline_lines:
-            best_headline_lines = [headline[:int(max_width / 10)].strip()]  # Fallback to a short portion
+            best_headline_lines = [headline[:int(max_width / 10)].strip()]
         best_spacing = int(font_sizes[-1] * 1.2)
         best_font_size = font_sizes[-1]
-        print(f"Forced rendering with font size {best_font_size}, {len(best_headline_lines)} lines")
 
     bangla_font_small, bangla_font_large, _ = load_fonts(language, best_font_size)
     headline_y = headline_y_start
 
-    print(f"Rendering headline with font size {best_font_size}, lines: {best_headline_lines}")
-
     for line in best_headline_lines:
-        try:
-            bbox = bangla_font_large.getbbox(line)
-            text_width = bbox[2] - bbox[0]
-            text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2
-            draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
-            print(f"Successfully rendered line '{line}' at y={headline_y}, width={text_width}")
-            headline_y += best_spacing
-        except Exception as e:
-            print(f"Failed to render line '{line}': {str(e)}")
-            # Fallback: Render with default font in English
-            fallback_font = ImageFont.load_default()
-            draw.text((text_x, headline_y), "Headline Rendering Failed", fill="red", font=fallback_font)
-            headline_y += best_spacing
-
-    print(f"Headline rendered, final y-position: {headline_y}")
+        bbox = bangla_font_large.getbbox(line)
+        text_width = bbox[2] - bbox[0]
+        text_x = PADDING + (HEADLINE_WIDTH - text_width) // 2
+        draw.text((text_x, headline_y), line, fill="white", font=bangla_font_large)
+        headline_y += best_spacing
 
     return headline_y
 
-# Convert date to Bengali or English format (only date, no time)
 def convert_to_date(pub_date, language="Bengali"):
     if language == "Bengali":
         bengali_digits = str.maketrans("0123456789", "০১২৩৪৫৬৭৮৯")
@@ -411,13 +309,11 @@ def convert_to_date(pub_date, language="Bengali"):
     else:
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
 
-# Create the news card
 def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
     canvas = Image.new("RGB", CANVAS_SIZE, PRIMARY_COLOR)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
 
-    # Add map overlay
     try:
         world_map = process_world_map("world-map.png")
         canvas = Image.new("RGBA", CANVAS_SIZE, PRIMARY_COLOR)
@@ -427,7 +323,6 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     except Exception as e:
         print(f"Warning: Could not load world map: {str(e)}")
 
-    # Add news image
     if image_source:
         try:
             news_image = process_image(image_source, is_uploaded=(not isinstance(image_source, str)), is_base64=(isinstance(image_source, str) and (image_source.startswith("data:image") or re.match(r'^[A-Za-z0-9+/=]+$', image_source))))
@@ -439,22 +334,25 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
         draw.rectangle((0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), fill="gray")
         draw.text((400, 300), "No Image Available", fill="white", font=regular_font)
 
-    # Logo box background with semi-transparent color and overlay
     secondary_rgba = tuple(int(SECONDARY_COLOR[i:i+2], 16) for i in (1, 3, 5)) + (int(255 * SOURCE_BOX_OPACITY),)
     draw.rectangle((0, LOGO_BOX_Y, CANVAS_SIZE[0], LOGO_BOX_Y + LOGO_BOX_HEIGHT), fill=secondary_rgba)
-    try:
-        logo_box_bg = process_logo_box_bg("logo-box-bg.png")
-        canvas.paste(logo_box_bg, (0, LOGO_BOX_Y), logo_box_bg)
-    except Exception as e:
-        print(f"Warning: Could not load logo box background: {str(e)}")
 
-    # Add top logo (drawn after the logo box to appear on top)
+    if st.session_state.show_logo_box_overlay:
+        try:
+            logo_box_bg = process_logo_box_bg("logo-box-bg.png")
+            canvas.paste(logo_box_bg, (0, LOGO_BOX_Y), logo_box_bg)
+        except Exception as e:
+            print(f"Warning: Could not load logo box background: {str(e)}")
+
     try:
-        logo_path = "logo.png"
-        print(f"Attempting to load logo from: {os.path.abspath(logo_path)}")
-        if not os.path.exists(logo_path):
-            raise FileNotFoundError(f"Logo file not found at {os.path.abspath(logo_path)}")
-        logo = Image.open(logo_path).convert("RGBA")
+        if st.session_state.custom_logo:
+            logo_data = base64.b64decode(st.session_state.custom_logo.split(",")[1])
+            logo = Image.open(BytesIO(logo_data)).convert("RGBA")
+        else:
+            logo_path = "logo.png"
+            if not os.path.exists(logo_path):
+                raise FileNotFoundError(f"Logo file not found at {os.path.abspath(logo_path)}")
+            logo = Image.open(logo_path).convert("RGBA")
         logo_width, logo_height = logo.size
         aspect = logo_width / logo_height
         if logo_width > logo_height:
@@ -464,54 +362,49 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
             logo_height = min(logo_height, LOGO_MAX_SIZE[1])
             logo_width = int(logo_height * aspect)
         logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
-        # Center the logo on the x-axis and middle of LOGO_BOX on the y-axis
         logo_x = (CANVAS_SIZE[0] - logo_width) // 2
         logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2) - (logo_height // 2)
-        logo_position = (logo_x, logo_y)
-        canvas.paste(logo, logo_position, logo)
-        print(f"Logo pasted at {logo_position} with size {logo_width}x{logo_height}")
+        canvas.paste(logo, (logo_x, logo_y), logo)
     except FileNotFoundError as e:
         print(f"Error: {str(e)}")
-        logo_x = (CANVAS_SIZE[0] - 100) // 2  # Approximate width for error text
-        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)  # Center y-position for error text
+        logo_x = (CANVAS_SIZE[0] - 100) // 2
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)
         draw.text((logo_x, logo_y), "Logo Missing", fill="red", font=regular_font)
     except Exception as e:
         print(f"Error loading logo: {str(e)}")
-        logo_x = (CANVAS_SIZE[0] - 100) // 2  # Approximate width for error text
-        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)  # Center y-position for error text
+        logo_x = (CANVAS_SIZE[0] - 100) // 2
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)
         draw.text((logo_x, logo_y), "Logo Load Error", fill="red", font=regular_font)
 
-    # Source text at comment's original position with customizable text color
     source_text = f"Source: {main_domain}"
     text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
     text_width = text_bbox[2] - text_bbox[0]
     text_x = CANVAS_SIZE[0] - PADDING - text_width
     draw.text((text_x, DATE_SOURCE_Y), source_text, fill=TEXT_COLOR, font=regular_font)
 
-    # Headline
     if "not found" in headline.lower():
         headline = "কোন শিরোনাম পাওয়া যায়নি" if language == "Bengali" else "No Headline Found"
     headline = headline.encode('utf-8').decode('utf-8')
     adjust_headline(headline, language, draw, HEADLINE_WIDTH, HEADLINE_MAX_HEIGHT)
 
-    # Date with customizable text color
     date_str = convert_to_date(pub_date, language)
     draw.text((PADDING, DATE_SOURCE_Y), date_str, fill=TEXT_COLOR, font=bangla_font_small)
 
-    # Comment text at y=720, centered, with bold font and larger size
     comment_text = "বিস্তারিত কমেন্টে" if language == "Bengali" else "More in comments"
-    bold_font = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 31)  # 20% larger than 26px
+    bold_font = ImageFont.truetype("NotoSerifBengali-Bold.ttf", 31)
     text_bbox = draw.textbbox((0, 0), comment_text, font=bold_font)
     text_width = text_bbox[2] - text_bbox[0]
-    text_x = (CANVAS_SIZE[0] - text_width) // 2  # Center horizontally
+    text_x = (CANVAS_SIZE[0] - text_width) // 2
     draw.text((text_x, 720), comment_text, fill=SECONDARY_TEXT_COLOR, font=bold_font)
 
-    # Add divider 60px below comment_text
     draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=SECONDARY_COLOR)
 
-    # Ad area
     try:
-        ad_image = Image.open("cp-ad.png")
+        if st.session_state.custom_ad:
+            ad_data = base64.b64decode(st.session_state.custom_ad.split(",")[1])
+            ad_image = Image.open(BytesIO(ad_data))
+        else:
+            ad_image = Image.open("cp-ad.png")
         ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
         canvas.paste(ad_image, (0, AD_AREA_Y))
     except FileNotFoundError:
@@ -521,148 +414,408 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     canvas.save(output_path)
     return output_path
 
-# Streamlit app
-st.title("Automated News Photo Card Generator")
-
-# Initialize session state
-if 'headline_key' not in st.session_state:
-    st.session_state.headline_key = 0
-if 'language' not in st.session_state:
-    st.session_state.language = "Bengali"
+# Initialize session state for colors, custom images, and logo box overlay
+if 'primary_color' not in st.session_state:
+    st.session_state.primary_color = PRIMARY_ACCENT_COLOR
+if 'secondary_color' not in st.session_state:
+    st.session_state.secondary_color = "#fbd302"  # Default to mustard yellow
+if 'text_color' not in st.session_state:
+    st.session_state.text_color = "#ffffff"  # Default to white
+if 'secondary_text_color' not in st.session_state:
+    st.session_state.secondary_text_color = "#fbd302"  # Default to mustard yellow
+if 'custom_logo' not in st.session_state:
+    st.session_state.custom_logo = None
+if 'custom_logo_name' not in st.session_state:
+    st.session_state.custom_logo_name = None
+if 'custom_ad' not in st.session_state:
+    st.session_state.custom_ad = None
+if 'custom_ad_name' not in st.session_state:
+    st.session_state.custom_ad_name = None
+if 'show_logo_box_overlay' not in st.session_state:
+    st.session_state.show_logo_box_overlay = True
 if 'generate_key' not in st.session_state:
     st.session_state.generate_key = 0
+if 'language' not in st.session_state:
+    st.session_state.language = "Bengali"
+if 'headline_key' not in st.session_state:
+    st.session_state.headline_key = 0
 
-# Reset button and No URL checkbox in columns
-col1, col2 = st.columns([1, 3])
+# Use session state colors
+PRIMARY_COLOR = st.session_state.primary_color
+SECONDARY_COLOR = st.session_state.secondary_color
+TEXT_COLOR = st.session_state.text_color
+SECONDARY_TEXT_COLOR = st.session_state.secondary_text_color
+
+# Custom CSS for modern UI
+st.markdown(
+    f"""
+    <style>
+    /* App background and layout */
+    .stApp {{
+        background-color: {BACKGROUND_LIGHT};
+        font-family: 'Inter', 'Roboto', 'Open Sans', 'Lato', sans-serif;
+    }}
+    /* Content area */
+    .main .block-container {{
+        background-color: {CONTENT_BG};
+        padding: 2rem 3rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        max-width: 960px;
+        margin: 0 auto;
+    }}
+    /* Header styling */
+    .css-1d391kg {{ /* Title */
+        font-size: 28px;
+        font-weight: 600;
+        color: {PRIMARY_ACCENT_COLOR};
+        text-align: left;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }}
+    .tagline {{
+        font-size: 14px;
+        color: {TEXT_DARK};
+        text-align: left;
+        margin-bottom: 1rem;
+    }}
+    /* Subheaders */
+    h3 {{
+        font-size: 18px !important;
+        margin-bottom: 0.15rem !important;
+        margin-top: 0.5rem !important;
+    }}
+    /* Containers for specific sections */
+    div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"] > div {{
+        margin-bottom: 0.15rem !important;
+    }}
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > select {{
+        border: 1px solid {NEUTRAL_LIGHT};
+        background-color: {CONTENT_BG};
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+    }}
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus,
+    .stSelectbox > div > div > select:focus {{
+        border-color: {PRIMARY_ACCENT_COLOR};
+        outline: none;
+    }}
+    .stTextInput label,
+    .stTextArea label,
+    .stSelectbox label {{
+        font-size: 14px;
+        color: {TEXT_LIGHT};
+        margin-bottom: 0.3rem;
+    }}
+    .stTextInput > div > div > input::placeholder,
+    .stTextArea > div > div > textarea::placeholder {{
+        color: {TEXT_DARK};
+    }}
+    /* File uploader */
+    .stFileUploader > div {{
+        border: 2px dashed {NEUTRAL_MEDIUM};
+        border-radius: 8px;
+        background-color: {BACKGROUND_LIGHT};
+        padding: 1rem;
+        text-align: center;
+    }}
+    .stFileUploader label {{
+        color: {TEXT_LIGHT};
+        font-size: 14px;
+    }}
+    .stFileUploader [data-testid="stFileUploadDropzone"] {{
+        color: {PRIMARY_ACCENT_COLOR};
+    }}
+    .stFileUploader [data-testid="stFileUploadDropzone"] div {{
+        margin-top: 0.3rem;
+    }}
+    /* Checkboxes and radio buttons */
+    .stCheckbox > label > span,
+    .stRadio > label > span {{
+        color: {TEXT_LIGHT};
+    }}
+    .stCheckbox [type="checkbox"]:checked + span::before,
+    .stRadio [type="radio"]:checked + span::before {{
+        background-color: {PRIMARY_ACCENT_COLOR};
+        border-color: {PRIMARY_ACCENT_COLOR};
+    }}
+    /* Expander */
+    .stExpander {{
+        border: 1px solid {NEUTRAL_LIGHT};
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }}
+    .stExpander > div > div {{
+        background-color: {BACKGROUND_LIGHT};
+        padding: 0.5rem 1rem;
+    }}
+    .stExpander [data-testid="stExpanderHeader"] {{
+        padding: 0.5rem 1rem;
+        font-size: 16px;
+        font-weight: 500;
+        color: {TEXT_LIGHT};
+    }}
+    /* Buttons */
+    .stButton > button {{
+        border-radius: 6px;
+        padding: 8px 20px;
+        font-weight: 500;
+    }}
+    .stButton > button[kind="primary"] {{
+        background-color: {PRIMARY_ACCENT_COLOR};
+        color: {CONTENT_BG};
+    }}
+    .stButton > button[kind="primary"]:hover {{
+        background-color: #892729;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }}
+    .stButton > button[kind="secondary"] {{
+        background-color: {SECONDARY_ACCENT_COLOR};
+        color: {CONTENT_BG};
+        border: none;
+    }}
+    .stButton > button[kind="secondary"]:hover {{
+        background-color: #2d2d2d;
+    }}
+    /* Custom reset style for specific buttons */
+    button[kind="secondary"][data-testid="reset-button"],
+    button[kind="secondary"][data-testid="reset-customizations-button"],
+    button[kind="secondary"][data-testid="download-button"] {{
+        background-color: transparent !important;
+        color: {TEXT_LIGHT} !important;
+        border: 1px solid {NEUTRAL_LIGHT} !important;
+    }}
+    button[kind="secondary"][data-testid="reset-button"]:hover,
+    button[kind="secondary"][data-testid="reset-customizations-button"]:hover,
+    button[kind="secondary"][data-testid="download-button"]:hover {{
+        background-color: {NEUTRAL_LIGHT} !important;
+    }}
+    /* Progress bar */
+    .stProgress > div > div > div > div {{
+        background-color: {PRIMARY_ACCENT_COLOR};
+    }}
+    /* Section spacing */
+    .stSpinner, .stSuccess, .stError {{
+        margin: 0.5rem 0;
+    }}
+    /* Adjust column spacing */
+    [data-testid="column"] + [data-testid="column"] {{
+        margin-left: 1.5rem;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Title and Tagline
+st.markdown(f"<h1 class='css-1d391kg'>Automated News Photo Card Generator</h1>", unsafe_allow_html=True)
+st.markdown(f"<p class='tagline'>Create engaging news visuals instantly.</p>", unsafe_allow_html=True)
+
+# Main layout with one column
+col1 = st.container()
+
 with col1:
-    if st.button("Reset", key=f"reset_button_{st.session_state.generate_key}"):
-        st.session_state.generate_key += 1
-with col2:
-    skip_url = st.checkbox("No URL", key=f"skip_url_{st.session_state.generate_key}")
+    # URL input and No URL checkbox
+    with st.container():
+        st.subheader("Put Your Link")
+        col_url, col_checkbox = st.columns([3, 1])
+        with col_url:
+            url = st.text_input(
+                "Enter the news article URL",
+                placeholder="https://example.com/news-article",
+                key=f"url_input_{st.session_state.generate_key}",
+                disabled=st.session_state.get(f"skip_url_{st.session_state.generate_key}", False)
+            )
+        with col_checkbox:
+            skip_url = st.checkbox("Skip URL", key=f"skip_url_{st.session_state.generate_key}")
+            if st.button("Reset", key=f"reset_button_{st.session_state.get('generate_key', 0)}", type="secondary", help="Reset the form"):
+                st.session_state.generate_key += 1
+        if not skip_url and url and not is_valid_url(url):
+            st.error("Please enter a valid URL (e.g., https://example.com).")
+            url = None
 
-# 1. URL input
-url = st.text_input(
-    "Enter the news article URL:",
-    placeholder="https://example.com/news-article",
-    key=f"url_input_{st.session_state.generate_key}",
-    disabled=skip_url
-)
-if not skip_url and url and not is_valid_url(url):
-    st.error("Please enter a valid URL (e.g., https://example.com).")
-    url = None
-
-# 2. Headline input
-placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
-custom_headline = st.text_input(
-    f"Enter a custom headline (optional, in {st.session_state.language}):",
-    placeholder=placeholder_text,
-    key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
-)
-
-# 3. Custom image upload
-uploaded_image = st.file_uploader("Upload a custom image (optional, overrides image from URL):", type=["png", "jpg", "jpeg"], key=f"image_upload_{st.session_state.generate_key}")
-image_source = None
-if uploaded_image:
-    image_source = uploaded_image
-    st.success("Custom image uploaded!")
-
-# 4. Color customization with reset option
-with st.expander("Customize Colors", expanded=False):
-    st.session_state.primary_color = st.color_picker("Primary Color (Brick Red)", st.session_state.primary_color, key=f"primary_color_{st.session_state.generate_key}")
-    st.session_state.secondary_color = st.color_picker("Secondary Color (Mustard Yellow)", st.session_state.secondary_color, key=f"secondary_color_{st.session_state.generate_key}")
-    st.session_state.text_color = st.color_picker("Text Color (Date, Source, Comment)", st.session_state.text_color, key=f"text_color_{st.session_state.generate_key}")
-    st.session_state.secondary_text_color = st.color_picker("Secondary Text Color (Comment)", st.session_state.secondary_text_color, key=f"secondary_text_color_{st.session_state.generate_key}")
-    if st.button("Reset Customizations"):
-        st.session_state.primary_color = PRIMARY_DEFAULT_COLOR
-        st.session_state.secondary_color = SECONDARY_DEFAULT_COLOR
-        st.session_state.text_color = DEFAULT_TEXT_COLOR
-        st.session_state.secondary_text_color = DEFAULT_SECONDARY_TEXT_COLOR
-        st.experimental_rerun()
-
-# 5. Option to override date
-with st.expander("Override Publication Date", expanded=False):
-    override_date = st.checkbox("Manually set the publication date", key=f"override_date_{st.session_state.generate_key}")
-    if override_date:
-        manual_date = st.date_input(
-            "Select the publication date:",
-            value=datetime.date(2025, 5, 28),  # Updated to today's date
-            min_value=datetime.date(1900, 1, 1),
-            max_value=datetime.date(2025, 5, 28),  # Current date as max
-            key=f"date_input_{st.session_state.generate_key}"
+    # Headline
+    with st.container():
+        st.subheader("Headline")
+        placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
+        custom_headline = st.text_input(
+            "Enter a custom headline",
+            placeholder=placeholder_text,
+            key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
         )
 
-# 6. Option to override source
-with st.expander("Override Source", expanded=False):
-    override_source = st.checkbox("Manually set the source", key=f"override_source_{st.session_state.generate_key}")
-    if override_source:
-        source_options = [
-            "প্রথম আলো", "কালের কন্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
-            "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পুর্বকোণ", "দৈনিক আজাদী",
-            "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকন্ঠ",
-            "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
-        ]
-        manual_source = st.selectbox(
-            "Select the source:",
-            options=source_options,
-            index=0,  # Default to "প্রথম আলো"
-            key=f"source_input_{st.session_state.generate_key}"
+    # Image (moved below Headline)
+    with st.container():
+        st.subheader("Image")
+        uploaded_image = st.file_uploader(
+            "Upload a custom image",
+            type=["png", "jpg", "jpeg"],
+            key=f"image_upload_{st.session_state.generate_key}"
+        )
+        image_source = uploaded_image if uploaded_image else None
+        if uploaded_image:
+            st.success(f"Custom image '{uploaded_image.name}' uploaded!")
+
+    # Override Settings
+    with st.expander("Override Settings"):
+        override_date = st.checkbox(
+            "Manually set the publication date",
+            key=f"override_date_{st.session_state.generate_key}"
+        )
+        if override_date:
+            manual_date = st.date_input(
+                "Select the publication date",
+                value=datetime.date.today(),
+                min_value=datetime.date(1900, 1, 1),
+                max_value=datetime.date.today(),
+                key=f"date_input_{st.session_state.generate_key}"
+            )
+
+        override_source = st.checkbox(
+            "Manually set the source",
+            key=f"override_source_{st.session_state.generate_key}"
+        )
+        if override_source:
+            source_options = [
+                "প্রথম আলো", "কালের কণ্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
+                "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পূর্বকোণ", "দৈনিক আজাদী",
+                "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকণ্ঠ",
+                "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
+            ]
+            manual_source = st.selectbox(
+                "Select the source",
+                options=source_options,
+                index=0,
+                key=f"source_input_{st.session_state.generate_key}"
+            )
+
+    # Additional Customisation
+    with st.expander("Additional Customisation"):
+        st.session_state.show_logo_box_overlay = st.checkbox(
+            "Show Logo Box Overlay",
+            value=st.session_state.show_logo_box_overlay,
+            key=f"show_logo_box_overlay_{st.session_state.generate_key}"
         )
 
-# 7. Language selection in collapsible section
-with st.expander("Language Settings", expanded=False):
-    selected_language = st.selectbox(
-        "Choose a language:",
-        options=["Bengali", "English"],
-        index=0 if st.session_state.language == "Bengali" else 1,
-        key=f"language_select_{st.session_state.generate_key}"
-    )
+        # Custom logo and ad upload sections
+        st.subheader("Logo & Ad")
+        custom_logo_upload = st.file_uploader(
+            "Upload a custom logo",
+            type=["png", "jpg", "jpeg"],
+            key=f"custom_logo_upload_{st.session_state.generate_key}"
+        )
+        if custom_logo_upload:
+            logo_bytes = custom_logo_upload.read()
+            logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_bytes).decode('utf-8')}"
+            st.session_state.custom_logo = logo_base64
+            st.session_state.custom_logo_name = custom_logo_upload.name
+            st.success(f"Custom logo '{custom_logo_upload.name}' uploaded!")
 
-# Update session state when language changes
-if selected_language != st.session_state.language:
-    st.session_state.language = selected_language
-    st.session_state.headline_key += 1
+        custom_ad_upload = st.file_uploader(
+            "Upload a custom ad",
+            type=["png", "jpg", "jpeg"],
+            key=f"custom_ad_upload_{st.session_state.generate_key}"
+        )
+        if custom_ad_upload:
+            ad_bytes = custom_ad_upload.read()
+            ad_base64 = f"data:image/png;base64,{base64.b64encode(ad_bytes).decode('utf-8')}"
+            st.session_state.custom_ad = ad_base64
+            st.session_state.custom_ad_name = custom_ad_upload.name
+            st.success(f"Custom ad '{custom_ad_upload.name}' uploaded!")
 
-# Generate button
-if st.button("Generate Photo Card"):
-    if not skip_url and not url:
-        st.warning("Please enter a valid URL or check 'No URL'.")
-    else:
-        progress_bar = st.progress(0)
-        for i in range(100):
-            time.sleep(0.02)  # Simulate progress
-            progress_bar.progress(i + 1)
-        try:
-            if skip_url:
-                # Set defaults when skipping URL
-                pub_date = datetime.datetime(2025, 5, 28, 12, 47)  # Current date and time
-                headline = "Headline not found"
-                image_url = None
-                source = "Source not found"
-                main_domain = "Unknown"
-            else:
-                # Extract data from URL
-                pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.session_state.primary_color = st.color_picker(
+                "Primary Color",
+                st.session_state.primary_color,
+                key=f"primary_color_{st.session_state.generate_key}"
+            )
+        with col2:
+            st.session_state.secondary_color = st.color_picker(
+                "Secondary Color",
+                st.session_state.secondary_color,
+                key=f"secondary_color_{st.session_state.generate_key}"
+            )
 
-            # Use manual date if override is enabled
-            if override_date:
-                pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
+        col3, col4 = st.columns(2)
+        with col3:
+            st.session_state.text_color = st.color_picker(
+                "Primary Text Color",
+                st.session_state.text_color,
+                key=f"text_color_{st.session_state.generate_key}"
+            )
+        with col4:
+            st.session_state.secondary_text_color = st.color_picker(
+                "Secondary Text Color",
+                st.session_state.secondary_text_color,
+                key=f"secondary_text_color_{st.session_state.generate_key}"
+            )
 
-            # Use manual source if override is enabled
-            if override_source:
-                main_domain = manual_source
+        st.subheader("Language Selection")
+        previous_language = st.session_state.language
+        language_options = ["Bengali", "English"]
+        st.session_state.language = st.radio(
+            "Select Language",
+            options=language_options,
+            index=language_options.index(st.session_state.language),
+            key=f"language_radio_{st.session_state.generate_key}"
+        )
+        if st.session_state.language != previous_language:
+            st.session_state.headline_key += 1
 
-            # Use custom headline if provided, otherwise use extracted or default
-            final_headline = custom_headline if custom_headline else headline
-
-            # Use uploaded image if provided, otherwise try URL image
-            if not image_source and image_url:
-                image_source = image_url
-
-            output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
-            st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
-            with open(output_path, "rb") as file:
-                st.download_button("Download Photo Card", file, file_name="photo_card.png")
+        if st.button("Reset Customizations", key="reset_customizations_button", type="secondary"):
             st.session_state.generate_key += 1
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-            st.session_state.generate_key += 1
+            st.session_state.primary_color = PRIMARY_ACCENT_COLOR
+            st.session_state.secondary_color = "#fbd302"
+            st.session_state.text_color = "#ffffff"
+            st.session_state.secondary_text_color = "#fbd302"
+            st.session_state.custom_logo = None
+            st.session_state.custom_logo_name = None
+            st.session_state.custom_ad = None
+            st.session_state.custom_ad_name = None
+            st.session_state.show_logo_box_overlay = True
+            st.session_state.language = "Bengali"
+            st.session_state.headline_key += 1
+
+    # Generate Button
+    if st.button("Generate Photo Card", type="primary"):
+        if not skip_url and not url:
+            st.warning("Please enter a valid URL or check 'Skip URL'.")
+        else:
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.02)
+                progress_bar.progress(i + 1)
+            try:
+                if skip_url:
+                    pub_date = datetime.datetime(2025, 6, 3, 13, 54)
+                    headline = "Headline not found"
+                    image_url = None
+                    source = "Source not found"
+                    main_domain = "Unknown"
+                else:
+                    pub_date, headline, image_url, source, main_domain = extract_news_data(url)
+
+                if override_date:
+                    pub_date = datetime.datetime.combine(manual_date, datetime.time(0, 0))
+
+                if override_source:
+                    main_domain = manual_source
+
+                final_headline = custom_headline if custom_headline else headline
+
+                if not image_source and image_url:
+                    image_source = image_url
+
+                output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
+                st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
+                with open(output_path, "rb") as file:
+                    st.download_button("Download Photo Card", file, file_name="photo_card.png", type="secondary", key="download_button")
+                st.session_state.generate_key += 1
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                st.session_state.generate_key += 1
