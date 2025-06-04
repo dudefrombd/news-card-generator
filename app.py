@@ -49,10 +49,10 @@ CONTENT_BG = "#FFFFFF"  # Pure white
 def is_valid_url(url):
     regex = re.compile(
         r'^(https?://)'  # Scheme
-        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'  # Domain
-        r'(/[^?\s]*)?'  # Path (optional)
-        r'(\?[^?\s]*)?'  # Query parameters (optional)
-        r'(\#.*)?$'  # Fragment (optional)
+        r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'
+        r'(/[^?\s]*)?'
+        r'(\?[^?\s]*)?'
+        r'(\#.*)?$'
     )
     return re.match(regex, url) is not None
 
@@ -70,7 +70,7 @@ def extract_main_domain(url):
         return "Unknown"
 
 def extract_news_data(url):
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -101,7 +101,7 @@ def extract_news_data(url):
 
 def url_to_base64(image_url, max_retries=2):
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
         'Accept': 'image/*',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
@@ -128,8 +128,8 @@ def url_to_base64(image_url, max_retries=2):
                 print(f"Retryable error: {str(e)}. Retrying...")
                 continue
             print(f"Failed request details: {str(e)}, Status: {getattr(e.response, 'status_code', 'N/A')}, Text: {getattr(e.response, 'text', 'N/A')}")
-            raise Exception(f"Failed to fetch image from URL: {str(e)}. The server may be blocking the request, or the URL may not be publicly accessible.")
-    raise Exception("Failed to fetch image after maximum retries. The server may be unavailable or blocking the request.")
+            raise Exception(f"Failed to fetch image from URL: {str(e)}.")
+    raise Exception("Failed to fetch image after maximum retries.")
 
 def process_image(image_source, is_uploaded=False, is_base64=False):
     try:
@@ -482,6 +482,7 @@ st.markdown(
     /* Subheaders */
     h3 {{
         font-size: 18px !important;
+        color: {TEXT_LIGHT} !important;
         margin-bottom: 0.15rem !important;
         margin-top: 0.5rem !important;
     }}
@@ -497,6 +498,7 @@ st.markdown(
         background-color: {CONTENT_BG};
         border-radius: 6px;
         padding: 0.5rem 1rem;
+        color: {TEXT_DARK};
     }}
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
@@ -555,7 +557,7 @@ st.markdown(
     }}
     .stExpander [data-testid="stExpanderHeader"] {{
         padding: 0.5rem 1rem;
-        font-size: 16px;
+        font-size: 18px; /* Increased from 16px */
         font-weight: 500;
         color: {TEXT_LIGHT};
     }}
@@ -605,6 +607,111 @@ st.markdown(
     /* Adjust column spacing */
     [data-testid="column"] + [data-testid="column"] {{
         margin-left: 1.5rem;
+    }}
+
+    /* Dark mode adjustments */
+    @media (prefers-color-scheme: dark) {{
+        .stApp {{
+            background-color: #1a1a1a;
+        }}
+        .main .block-container {{
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+        }}
+        .css-1d391kg {{ /* Title */
+            color: #ff6b6b !important;
+        }}
+        .tagline {{
+            color: #b0b0b0;
+        }}
+        h3 {{
+            color: #ff8787 !important;
+        }}
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea,
+        .stSelectbox > div > div > select {{
+            background-color: #333333;
+            color: #e0e0e0;
+            border-color: #4a4a4a;
+        }}
+        .stTextInput > div > div > input::placeholder,
+        .stTextArea > div > div > textarea::placeholder {{
+            color: #888888;
+        }}
+        .stTextInput label,
+        .stTextArea label,
+        .stSelectbox label,
+        .stCheckbox > label > span,
+        .stRadio > label > span,
+        .stFileUploader label,
+        .stExpander [data-testid="stExpanderHeader"] {{
+            color: #ff8787 !important; /* Adjusted for dark mode */
+        }}
+        .stFileUploader > div {{
+            background-color: #222222;
+            border-color: #4a4a4a;
+        }}
+        .stExpander > div > div {{
+            background-color: #222222;
+        }}
+        .stButton > button[kind="primary"] {{
+            color: #ffffff;
+        }}
+        .stButton > button[kind="secondary"] {{
+            color: #ffffff;
+        }}
+        button[kind="secondary"][data-testid="reset-button"],
+        button[kind="secondary"][data-testid="reset-customizations-button"],
+        button[kind="secondary"][data-testid="download-button"] {{
+            color: #ff8787 !important;
+            border-color: #4a4a4a !important;
+        }}
+    }}
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {{
+        .main .block-container {{
+            padding: 1rem;
+            max-width: 100%;
+        }}
+        .css-1d391kg {{ /* Title */
+            font-size: 24px;
+        }}
+        .tagline {{
+            font-size: 12px;
+        }}
+        h3 {{
+            font-size: 16px !important;
+        }}
+        .stTextInput > div > div > input,
+        .stTextArea > div > div > textarea,
+        .stSelectbox > div > div > select {{
+            padding: 0.4rem 0.8rem;
+            font-size: 14px;
+        }}
+        .stTextInput label,
+        .stTextArea label,
+        .stSelectbox label,
+        .stFileUploader label,
+        .stCheckbox > label > span,
+        .stRadio > label > span {{
+            font-size: 12px;
+        }}
+        .stExpander [data-testid="stExpanderHeader"] {{
+            font-size: 16px; /* Adjusted for mobile */
+        }}
+        .stButton > button {{
+            padding: 6px 16px;
+            font-size: 14px;
+        }}
+        [data-testid="column"] {{
+            width: 100% !important;
+            margin-left: 0 !important;
+            margin-bottom: 0.5rem;
+        }}
+        [data-testid="column"] + [data-testid="column"] {{
+            margin-left: 0 !important;
+        }}
     }}
     </style>
     """,
