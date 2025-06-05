@@ -494,6 +494,7 @@ st.markdown(
         border-radius: 6px;
         padding: 0.5rem 1rem;
         color: {TEXT_DARK};
+        margin-top: 0.1rem !important; /* Reduced space between input and label */
     }}
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
@@ -504,9 +505,9 @@ st.markdown(
     .stTextInput label,
     .stTextArea label,
     .stSelectbox label {{
-        font-size: 14px;
+        font-size: 21px !important; /* Increased by 50% from 14px to 21px */
         color: #334ec2 !important;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.1rem !important; /* Reduced space below label */
     }}
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {{
@@ -518,10 +519,11 @@ st.markdown(
         background-color: {BACKGROUND_LIGHT};
         padding: 1rem;
         text-align: center;
+        margin-top: 0.1rem !important; /* Reduced space between uploader and label */
     }}
     .stFileUploader label {{
+        font-size: 21px !important; /* Increased by 50% from 14px to 21px */
         color: #334ec2 !important;
-        font-size: 14px;
     }}
     .stFileUploader [data-testid="stFileUploadDropzone"] {{
         color: {PRIMARY_ACCENT_COLOR};
@@ -549,7 +551,7 @@ st.markdown(
     }}
     .stExpander [data-testid="stExpanderHeader"] {{
         padding: 0.5rem 1rem;
-        font-size: 22px; /* Increased from 18px to 22px */
+        font-size: 22px;
         font-weight: 500;
         color: #334ec2 !important;
     }}
@@ -609,6 +611,10 @@ st.markdown(
         font-size: 14px;
         color: {TEXT_DARK};
         margin-top: 0.5rem;
+    }}
+    /* Reduce space between file uploader and text input */
+    div[data-testid="stFileUploader"] + div[data-testid="stTextInput"] {{
+        margin-top: 0.25rem !important;
     }}
     @media (prefers-color-scheme: dark) {{
         .stApp {{
@@ -686,6 +692,7 @@ st.markdown(
         .stSelectbox > div > div > select {{
             padding: 0.4rem 0.8px;
             font-size: 14px;
+            margin-top: 0.05rem !important; /* Adjusted for mobile */
         }}
         .stTextInput label,
         .stTextArea label,
@@ -693,10 +700,10 @@ st.markdown(
         .stFileUploader label,
         .stCheckbox > label > span,
         .stRadio > label > span {{
-            font-size: 12px;
+            font-size: 18px !important; /* Increased by 50% from 12px to 18px for mobile */
         }}
         .stExpander [data-testid="stExpanderHeader"] {{
-            font-size: 18px; /* Adjusted for mobile, increased from 16px */
+            font-size: 18px;
         }}
         .stButton > button {{
             padding: 6px 16px;
@@ -709,6 +716,12 @@ st.markdown(
         }}
         [data-testid="column"] + [data-testid="column"] {{
             margin-left: 0 !important;
+        }}
+        div[data-testid="stFileUploader"] + div[data-testid="stTextInput"] {{
+            margin-top: 0.15rem !important;
+        }}
+        .stFileUploader > div {{
+            margin-top: 0.05rem !important; /* Adjusted for mobile */
         }}
     }}
     </style>
@@ -726,11 +739,10 @@ col1 = st.container()
 
 with col1:
     with st.container():
-        st.subheader("Input URL")
         col_url, col_checkbox = st.columns([3, 1])
         with col_url:
             url = st.text_input(
-                "Enter the news article URL",
+                "Enter the News URL",
                 placeholder="https://example.com/news-article",
                 key=f"url_input_{st.session_state.generate_key}",
                 value=st.session_state.url_value,
@@ -751,24 +763,21 @@ with col1:
         url = None
 
     with st.container():
-        st.subheader("Headline")
-        placeholder_text = "কোনো শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
         custom_headline = st.text_input(
-            "Enter a custom headline",
-            placeholder=placeholder_text,
+            "Enter a Custom Headline",
+            placeholder="কোনো শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found",
             key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
         )
 
     with st.container():
-        st.subheader("Upload a Custom Image")
         uploaded_image = st.file_uploader(
-            "Upload a custom image",
+            "Upload a Custom Image",
             type=["png", "jpg", "jpeg"],
             key=f"image_upload_{st.session_state.generate_key}"
         )
-        st.subheader("Paste Image Address")
         pasted_image_bridge = st.text_input(
-            "Pasted Image Bridge",
+            "",
+            placeholder="Paste Image Address",
             key=f"pasted_image_bridge_{st.session_state.generate_key}",
             value=st.session_state.pasted_image_bridge,
             label_visibility="hidden"
