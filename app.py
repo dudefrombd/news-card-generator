@@ -18,37 +18,34 @@ LOGO_BOX_HEIGHT = 120
 LOGO_BOX_Y = 580
 PADDING = 20
 HEADLINE_WIDTH = 1040
-HEADLINE_MAX_HEIGHT = 220  # 830px to 1050px
+HEADLINE_MAX_HEIGHT = 220
 DATE_SOURCE_Y = 1050
 AD_AREA_Y = 1100
 AD_AREA_SIZE = (1080, 100)
-LOGO_MAX_SIZE = (142, 71)  # Scaled down 10% from original (158, 79)
-AD_LOGO_MAX_SIZE = (225, 90)
+LOGO_MAX_SIZE = (142, 71)
 MAP_OPACITY = 0.3
 SOURCE_BOX_OPACITY = 0.7
 MAP_BOX_WIDTH = 1080
 MAP_BOX_HEIGHT = 400
 MAP_BOX_X = 0
 MAP_BOX_Y = 700
-DIVIDER_Y = 780  # 10px below comment_text at y=720
+DIVIDER_Y = 780
 DIVIDER_THICKNESS = 2
 
 # Theme Colors
-PRIMARY_ACCENT_COLOR = "#9f2d32"  # Brick red
-SECONDARY_ACCENT_COLOR = "#3c3c3c"  # Dark grey
-SUCCESS_COLOR = "#28A745"  # Green
-ERROR_COLOR = "#DC3545"  # Red
-NEUTRAL_LIGHT = "#E9ECEF"  # Light grey for borders
-NEUTRAL_MEDIUM = "#CED4DA"  # Medium grey for disabled
-TEXT_LIGHT = "#f54149"  # Reddish color
-TEXT_DARK = "#3c3c3c"  # Dark grey for secondary text
-BACKGROUND_LIGHT = "#F8F9FA"  # Very light grey
-CONTENT_BG = "#FFFFFF"  # Pure white
+PRIMARY_ACCENT_COLOR = "#9f2d32"
+SECONDARY_ACCENT_COLOR = "#3c3c3c"
+ERROR_COLOR = "#DC3545"
+NEUTRAL_LIGHT = "#E9ECEF"
+NEUTRAL_MEDIUM = "#CED4DA"
+TEXT_DARK = "#3c3c3c"
+BACKGROUND_LIGHT = "#F8F9FA"
+CONTENT_BG = "#FFFFFF"
 
 # Functions
 def is_valid_url(url):
     regex = re.compile(
-        r'^(https?://)'  # Scheme
+        r'^(https?://)'
         r'([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}'
         r'(/[^?\s]*)?'
         r'(\?[^?\s]*)?'
@@ -71,33 +68,30 @@ def extract_main_domain(url):
 
 def extract_news_data(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, 'html.parser')
 
-        date_tag = soup.find('meta', {'property': 'article:published_time'})
-        date_str = date_tag['content'] if date_tag else None
-        pub_date = None
-        if date_str:
-            try:
-                pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            except ValueError:
-                pub_date = None
+    date_tag = soup.find('meta', {'property': 'article:published_time'})
+    date_str = date_tag['content'] if date_tag else None
+    pub_date = None
+    if date_str:
+        try:
+            pub_date = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        except ValueError:
+            pub_date = None
 
-        headline_tag = soup.find('meta', {'property': 'og:title'})
-        headline = headline_tag['content'] if headline_tag else 'Headline not found'
+    headline_tag = soup.find('meta', {'property': 'og:title'})
+    headline = headline_tag['content'] if headline_tag else 'Headline not found'
 
-        image_tag = soup.find('meta', {'property': 'og:image'})
-        image_url = image_tag['content'] if image_tag else None
+    image_tag = soup.find('meta', {'property': 'og:image'})
+    image_url = image_tag['content'] if image_tag else None
 
-        source_tag = soup.find('meta', {'property': 'og:site_name'})
-        source = source_tag['content'] if source_tag else 'Source not found'
+    source_tag = soup.find('meta', {'property': 'og:site_name'})
+    source = source_tag['content'] if source_tag else 'Source not found'
 
-        main_domain = extract_main_domain(url)
-        return pub_date, headline, image_url, source, main_domain
-    except Exception as e:
-        raise Exception(f"Failed to extract news data: {str(e)}")
+    main_domain = extract_main_domain(url)
+    return pub_date, headline, image_url, source, main_domain
 
 def url_to_base64(image_url, max_retries=2):
     headers = {
@@ -109,129 +103,118 @@ def url_to_base64(image_url, max_retries=2):
     }
     for attempt in range(max_retries):
         try:
-            print(f"Attempt {attempt + 1} to fetch {image_url}")
             response = requests.get(image_url, headers=headers, timeout=15, allow_redirects=True)
-            print(f"Response status code: {response.status_code}")
             response.raise_for_status()
             content_type = response.headers.get('Content-Type', '')
-            print(f"Content-Type: {content_type}")
             if not content_type.startswith('image/'):
                 raise Exception("The URL does not point to a valid image file.")
             image_data = BytesIO(response.content)
             image = Image.open(image_data)
             buffered = BytesIO()
             image.save(buffered, format="PNG")
-            print("Image fetched and converted to base64 successfully.")
             return base64.b64encode(buffered.getvalue()).decode('utf-8')
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1 and (e.response is None or e.response.status_code in [429, 503]):
-                print(f"Retryable error: {str(e)}. Retrying...")
                 continue
-            print(f"Failed request details: {str(e)}, Status: {getattr(e.response, 'status_code', 'N/A')}, Text: {getattr(e.response, 'text', 'N/A')}")
             raise Exception(f"Failed to fetch image from URL: {str(e)}.")
     raise Exception("Failed to fetch image after maximum retries.")
 
 def process_image(image_source, is_uploaded=False, is_base64=False):
-    try:
-        if is_uploaded:
-            image = Image.open(image_source)
-        elif is_base64:
-            if "," in image_source:
-                image_source = image_source.split(",")[1]
-            image_data = base64.b64decode(image_source)
-            image = Image.open(BytesIO(image_data))
-        else:
-            image_source = url_to_base64(image_source)
-            if "," in image_source:
-                image_source = image_source.split(",")[1]
-            image_data = base64.b64decode(image_source)
-            image = Image.open(BytesIO(image_data))
+    if is_uploaded:
+        image = Image.open(image_source)
+    elif is_base64:
+        if "," in image_source:
+            image_source = image_source.split(",")[1]
+        image_data = base64.b64decode(image_source)
+        image = Image.open(BytesIO(image_data))
+    else:
+        image_source = url_to_base64(image_source)
+        if "," in image_source:
+            image_source = image_source.split(",")[1]
+        image_data = base64.b64decode(image_source)
+        image = Image.open(BytesIO(image_data))
 
-        width, height = image.size
-        target_width, target_height = IMAGE_SIZE
-        aspect_ratio = width / height
-        target_aspect = target_width / target_height
+    width, height = image.size
+    target_width, target_height = IMAGE_SIZE
+    aspect_ratio = width / height
+    target_aspect = target_width / target_height
 
-        if aspect_ratio > target_aspect:
-            new_height = target_height
-            new_width = int(new_height * aspect_ratio)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            left = (new_width - target_width) // 2
-            image = image.crop((left, 0, left + target_width, target_height))
-        else:
-            new_width = target_width
-            new_height = int(new_width / aspect_ratio)
-            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-            top = (new_height - target_height) // 2
-            image = image.crop((0, top, target_width, top + target_height))
-
-        return image
-    except Exception as e:
-        raise Exception(f"Failed to process image: {str(e)}")
-
-def process_world_map(map_path):
-    try:
-        map_image = Image.open(map_path).convert("RGBA")
-        width, height = map_image.size
-
-        aspect_ratio = width / height
-        target_width, target_height = MAP_BOX_WIDTH, MAP_BOX_HEIGHT
-        target_aspect = target_width / target_height
-
+    if aspect_ratio > target_aspect:
+        new_height = target_height
+        new_width = int(new_height * aspect_ratio)
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        left = (new_width - target_width) // 2
+        image = image.crop((left, 0, left + target_width, target_height))
+    else:
         new_width = target_width
         new_height = int(new_width / aspect_ratio)
-        map_image = map_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        top = (new_height - target_height) // 2
+        image = image.crop((0, top, target_width, top + target_height))
 
-        if new_height > target_height:
-            top = (new_height - target_height) // 2
-            map_image = map_image.crop((0, top, target_width, top + target_height))
-        else:
-            new_map = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
-            y_offset = (target_height - new_height) // 2
-            new_map.paste(map_image, (0, y_offset))
-            map_image = new_map
+    return image
 
-        map_data = map_image.getdata()
-        new_data = [(item[0], item[1], item[2], int(item[3] * MAP_OPACITY)) for item in map_data]
-        map_image.putdata(new_data)
+def process_world_map(map_path):
+    if not os.path.exists(map_path):
+        return None
+    map_image = Image.open(map_path).convert("RGBA")
+    width, height = map_image.size
 
-        return map_image
-    except Exception as e:
-        raise Exception(f"Failed to process world map: {str(e)}")
+    aspect_ratio = width / height
+    target_width, target_height = MAP_BOX_WIDTH, MAP_BOX_HEIGHT
+    target_aspect = target_width / target_height
+
+    new_width = target_width
+    new_height = int(new_width / aspect_ratio)
+    map_image = map_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+    if new_height > target_height:
+        top = (new_height - target_height) // 2
+        map_image = map_image.crop((0, top, target_width, top + target_height))
+    else:
+        new_map = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+        y_offset = (target_height - new_height) // 2
+        new_map.paste(map_image, (0, y_offset))
+        map_image = new_map
+
+    map_data = map_image.getdata()
+    new_data = [(item[0], item[1], item[2], int(item[3] * MAP_OPACITY)) for item in map_data]
+    map_image.putdata(new_data)
+
+    return map_image
 
 def process_logo_box_bg(bg_path):
-    try:
-        bg_image = Image.open(bg_path).convert("RGBA")
-        target_width, target_height = CANVAS_SIZE[0], LOGO_BOX_HEIGHT
-        bg_image = bg_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    if not os.path.exists(bg_path):
+        return None
+    bg_image = Image.open(bg_path).convert("RGBA")
+    target_width, target_height = CANVAS_SIZE[0], LOGO_BOX_HEIGHT
+    bg_image = bg_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
-        bg_data = bg_image.getdata()
-        new_data = [(item[0], item[1], item[2], int(item[3] * SOURCE_BOX_OPACITY)) for item in bg_data]
-        bg_image.putdata(new_data)
+    bg_data = bg_image.getdata()
+    new_data = [(item[0], item[1], item[2], int(item[3] * SOURCE_BOX_OPACITY)) for item in bg_data]
+    bg_image.putdata(new_data)
 
-        return bg_image
-    except Exception as e:
-        raise Exception(f"Failed to process logo box background: {str(e)}")
+    return bg_image
 
 def load_fonts(language="Bengali", font_size=48):
     bangla_font_small = bangla_font_large = regular_font = None
 
     try:
         bangla_font_large = ImageFont.truetype("NotoSerifBengali-Bold.ttf", font_size)
-    except Exception as e:
+    except Exception:
         try:
             bangla_font_large = ImageFont.truetype("Arial Unicode MS.ttf", font_size)
-        except Exception as e2:
+        except Exception:
             bangla_font_large = ImageFont.load_default()
 
     try:
         bangla_font_small = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 26)
         regular_font = ImageFont.truetype("NotoSerifBengali-Regular.ttf", 24)
-    except Exception as e:
+    except Exception:
         try:
             bangla_font_small = ImageFont.truetype("Arial Unicode MS.ttf", 26)
             regular_font = ImageFont.truetype("Arial Unicode MS.ttf", 24)
-        except Exception as e2:
+        except Exception:
             bangla_font_small = regular_font = ImageFont.load_default()
 
     return bangla_font_small, bangla_font_large, regular_font
@@ -309,19 +292,20 @@ def convert_to_date(pub_date, language="Bengali"):
     else:
         return pub_date.strftime("%d %B %Y") if pub_date else datetime.date.today().strftime("%d %B %Y")
 
-def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali", output_path="photo_card.png"):
+def create_photo_card(headline, image_source, pub_date, main_domain, language="Bengali"):
+    buf = BytesIO()
     canvas = Image.new("RGB", CANVAS_SIZE, PRIMARY_COLOR)
     draw = ImageDraw.Draw(canvas)
     bangla_font_small, bangla_font_large, regular_font = load_fonts(language)
 
-    try:
-        world_map = process_world_map("world-map.png")
-        canvas = Image.new("RGBA", CANVAS_SIZE, PRIMARY_COLOR)
-        canvas.paste(world_map, (MAP_BOX_X, MAP_BOX_Y), world_map)
-        canvas = canvas.convert("RGB")
-        draw = ImageDraw.Draw(canvas)
-    except Exception as e:
-        print(f"Warning: Could not load world map: {str(e)}")
+    world_map_path = "world-map.png"
+    if os.path.exists(world_map_path):
+        world_map = process_world_map(world_map_path)
+        if world_map:
+            canvas = Image.new("RGBA", CANVAS_SIZE, PRIMARY_COLOR)
+            canvas.paste(world_map, (MAP_BOX_X, MAP_BOX_Y), world_map)
+            canvas = canvas.convert("RGB")
+            draw = ImageDraw.Draw(canvas)
 
     if image_source:
         try:
@@ -338,21 +322,14 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
     draw.rectangle((0, LOGO_BOX_Y, CANVAS_SIZE[0], LOGO_BOX_Y + LOGO_BOX_HEIGHT), fill=secondary_rgba)
 
     if st.session_state.show_logo_box_overlay:
-        try:
-            logo_box_bg = process_logo_box_bg("logo-box-bg.png")
+        logo_box_bg_path = "logo-box-bg.png"
+        logo_box_bg = process_logo_box_bg(logo_box_bg_path)
+        if logo_box_bg:
             canvas.paste(logo_box_bg, (0, LOGO_BOX_Y), logo_box_bg)
-        except Exception as e:
-            print(f"Warning: Could not load logo box background: {str(e)}")
 
-    try:
-        if st.session_state.custom_logo:
-            logo_data = base64.b64decode(st.session_state.custom_logo.split(",")[1])
-            logo = Image.open(BytesIO(logo_data)).convert("RGBA")
-        else:
-            logo_path = "logo.png"
-            if not os.path.exists(logo_path):
-                raise FileNotFoundError(f"Logo file not found at {os.path.abspath(logo_path)}")
-            logo = Image.open(logo_path).convert("RGBA")
+    logo_path = "logo.png"
+    if os.path.exists(logo_path):
+        logo = Image.open(logo_path).convert("RGBA")
         logo_width, logo_height = logo.size
         aspect = logo_width / logo_height
         if logo_width > logo_height:
@@ -365,16 +342,26 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
         logo_x = (CANVAS_SIZE[0] - logo_width) // 2
         logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2) - (logo_height // 2)
         canvas.paste(logo, (logo_x, logo_y), logo)
-    except FileNotFoundError as e:
-        print(f"Error: {str(e)}")
+    else:
         logo_x = (CANVAS_SIZE[0] - 100) // 2
         logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)
         draw.text((logo_x, logo_y), "Logo Missing", fill="red", font=regular_font)
-    except Exception as e:
-        print(f"Error loading logo: {str(e)}")
-        logo_x = (CANVAS_SIZE[0] - 100) // 2
-        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2)
-        draw.text((logo_x, logo_y), "Logo Load Error", fill="red", font=regular_font)
+
+    if st.session_state.custom_logo:
+        logo_data = base64.b64decode(st.session_state.custom_logo.split(",")[1])
+        logo = Image.open(BytesIO(logo_data)).convert("RGBA")
+        logo_width, logo_height = logo.size
+        aspect = logo_width / logo_height
+        if logo_width > logo_height:
+            logo_width = min(logo_width, LOGO_MAX_SIZE[0])
+            logo_height = int(logo_width / aspect)
+        else:
+            logo_height = min(logo_height, LOGO_MAX_SIZE[1])
+            logo_width = int(logo_height * aspect)
+        logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+        logo_x = (CANVAS_SIZE[0] - logo_width) // 2
+        logo_y = LOGO_BOX_Y + (LOGO_BOX_HEIGHT // 2) - (logo_height // 2)
+        canvas.paste(logo, (logo_x, logo_y), logo)
 
     source_text = f"Source: {main_domain}"
     text_bbox = draw.textbbox((0, 0), source_text, font=regular_font)
@@ -399,30 +386,36 @@ def create_photo_card(headline, image_source, pub_date, main_domain, language="B
 
     draw.rectangle((0, DIVIDER_Y, CANVAS_SIZE[0], DIVIDER_Y + DIVIDER_THICKNESS), fill=SECONDARY_COLOR)
 
-    try:
-        if st.session_state.custom_ad:
-            ad_data = base64.b64decode(st.session_state.custom_ad.split(",")[1])
-            ad_image = Image.open(BytesIO(ad_data))
-        else:
-            ad_image = Image.open("cp-ad.png")
+    ad_path = "cp-ad.png"
+    if os.path.exists(ad_path):
+        ad_image = Image.open(ad_path)
         ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
         canvas.paste(ad_image, (0, AD_AREA_Y))
-    except FileNotFoundError:
+    else:
         draw.rectangle((0, AD_AREA_Y, AD_AREA_SIZE[0], AD_AREA_Y + AD_AREA_SIZE[1]), fill="black")
         draw.text((CANVAS_SIZE[0] // 2, AD_AREA_Y + 50), "Default Ad Image Missing", fill="white", font=regular_font, anchor="mm")
 
-    canvas.save(output_path)
-    return output_path
+    if st.session_state.custom_ad:
+        ad_data = base64.b64decode(st.session_state.custom_ad.split(",")[1])
+        ad_image = Image.open(BytesIO(ad_data))
+        ad_image = ad_image.resize(AD_AREA_SIZE, Image.Resampling.LANCZOS)
+        canvas.paste(ad_image, (0, AD_AREA_Y))
 
-# Initialize session state for colors, custom images, and logo box overlay
+    canvas.save(buf, format="PNG")
+    byte_im = buf.getvalue()
+
+    img_base64 = base64.b64encode(byte_im).decode('utf-8')
+    return img_base64, buf
+
+# Initialize session state for colors, custom images, logo box overlay, and card counter
 if 'primary_color' not in st.session_state:
     st.session_state.primary_color = PRIMARY_ACCENT_COLOR
 if 'secondary_color' not in st.session_state:
-    st.session_state.secondary_color = "#fbd302"  # Default to mustard yellow
+    st.session_state.secondary_color = "#fbd302"
 if 'text_color' not in st.session_state:
-    st.session_state.text_color = "#ffffff"  # Default to white
+    st.session_state.text_color = "#ffffff"
 if 'secondary_text_color' not in st.session_state:
-    st.session_state.secondary_text_color = "#fbd302"  # Default to mustard yellow
+    st.session_state.secondary_text_color = "#fbd302"
 if 'custom_logo' not in st.session_state:
     st.session_state.custom_logo = None
 if 'custom_logo_name' not in st.session_state:
@@ -439,6 +432,14 @@ if 'language' not in st.session_state:
     st.session_state.language = "Bengali"
 if 'headline_key' not in st.session_state:
     st.session_state.headline_key = 0
+if 'pasted_image' not in st.session_state:
+    st.session_state.pasted_image = None
+if 'pasted_image_bridge' not in st.session_state:
+    st.session_state.pasted_image_bridge = ""
+if 'url_value' not in st.session_state:
+    st.session_state.url_value = ""
+if 'card_counter' not in st.session_state:
+    st.session_state.card_counter = 1
 
 # Use session state colors
 PRIMARY_COLOR = st.session_state.primary_color
@@ -446,16 +447,14 @@ SECONDARY_COLOR = st.session_state.secondary_color
 TEXT_COLOR = st.session_state.text_color
 SECONDARY_TEXT_COLOR = st.session_state.secondary_text_color
 
-# Custom CSS for modern UI
+# Custom CSS and JavaScript
 st.markdown(
     f"""
     <style>
-    /* App background and layout */
     .stApp {{
         background-color: {BACKGROUND_LIGHT};
         font-family: 'Inter', 'Roboto', 'Open Sans', 'Lato', sans-serif;
     }}
-    /* Content area */
     .main .block-container {{
         background-color: {CONTENT_BG};
         padding: 2rem 3rem;
@@ -464,8 +463,7 @@ st.markdown(
         max-width: 960px;
         margin: 0 auto;
     }}
-    /* Header styling */
-    .css-1d391kg {{ /* Title */
+    .css-1d391kg {{
         font-size: 28px;
         font-weight: 600;
         color: {PRIMARY_ACCENT_COLOR};
@@ -479,18 +477,15 @@ st.markdown(
         text-align: left;
         margin-bottom: 1rem;
     }}
-    /* Subheaders */
     h3 {{
         font-size: 18px !important;
-        color: {TEXT_LIGHT} !important;
-        margin-bottom: 0.15rem !important;
+        color: #334ec2 !important;
+        margin-bottom: 0.075rem !important;
         margin-top: 0.5rem !important;
     }}
-    /* Containers for specific sections */
     div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"] > div {{
-        margin-bottom: 0.15rem !important;
+        margin-bottom: 0.075rem !important;
     }}
-    /* Input fields */
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea,
     .stSelectbox > div > div > select {{
@@ -510,14 +505,13 @@ st.markdown(
     .stTextArea label,
     .stSelectbox label {{
         font-size: 14px;
-        color: {TEXT_LIGHT};
+        color: #334ec2 !important;
         margin-bottom: 0.3rem;
     }}
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {{
         color: {TEXT_DARK};
     }}
-    /* File uploader */
     .stFileUploader > div {{
         border: 2px dashed {NEUTRAL_MEDIUM};
         border-radius: 8px;
@@ -526,7 +520,7 @@ st.markdown(
         text-align: center;
     }}
     .stFileUploader label {{
-        color: {TEXT_LIGHT};
+        color: #334ec2 !important;
         font-size: 14px;
     }}
     .stFileUploader [data-testid="stFileUploadDropzone"] {{
@@ -535,17 +529,15 @@ st.markdown(
     .stFileUploader [data-testid="stFileUploadDropzone"] div {{
         margin-top: 0.3rem;
     }}
-    /* Checkboxes and radio buttons */
     .stCheckbox > label > span,
     .stRadio > label > span {{
-        color: {TEXT_LIGHT};
+        color: #334ec2 !important;
     }}
     .stCheckbox [type="checkbox"]:checked + span::before,
     .stRadio [type="radio"]:checked + span::before {{
         background-color: {PRIMARY_ACCENT_COLOR};
         border-color: {PRIMARY_ACCENT_COLOR};
     }}
-    /* Expander */
     .stExpander {{
         border: 1px solid {NEUTRAL_LIGHT};
         border-radius: 6px;
@@ -557,11 +549,10 @@ st.markdown(
     }}
     .stExpander [data-testid="stExpanderHeader"] {{
         padding: 0.5rem 1rem;
-        font-size: 18px; /* Increased from 16px */
+        font-size: 22px; /* Increased from 18px to 22px */
         font-weight: 500;
-        color: {TEXT_LIGHT};
+        color: #334ec2 !important;
     }}
-    /* Buttons */
     .stButton > button {{
         border-radius: 6px;
         padding: 8px 20px;
@@ -583,12 +574,11 @@ st.markdown(
     .stButton > button[kind="secondary"]:hover {{
         background-color: #2d2d2d;
     }}
-    /* Custom reset style for specific buttons */
     button[kind="secondary"][data-testid="reset-button"],
     button[kind="secondary"][data-testid="reset-customizations-button"],
     button[kind="secondary"][data-testid="download-button"] {{
         background-color: transparent !important;
-        color: {TEXT_LIGHT} !important;
+        color: #334ec2 !important;
         border: 1px solid {NEUTRAL_LIGHT} !important;
     }}
     button[kind="secondary"][data-testid="reset-button"]:hover,
@@ -596,20 +586,30 @@ st.markdown(
     button[kind="secondary"][data-testid="download-button"]:hover {{
         background-color: {NEUTRAL_LIGHT} !important;
     }}
-    /* Progress bar */
     .stProgress > div > div > div > div {{
         background-color: {PRIMARY_ACCENT_COLOR};
     }}
-    /* Section spacing */
-    .stSpinner, .stSuccess, .stError {{
+    .stSpinner, .stError {{
         margin: 0.5rem 0;
     }}
-    /* Adjust column spacing */
     [data-testid="column"] + [data-testid="column"] {{
         margin-left: 1.5rem;
     }}
-
-    /* Dark mode adjustments */
+    [key^="pasted_image_bridge_"] {{
+        display: none !important;
+    }}
+    .base64-image {{
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }}
+    .image-caption {{
+        text-align: center;
+        font-size: 14px;
+        color: {TEXT_DARK};
+        margin-top: 0.5rem;
+    }}
     @media (prefers-color-scheme: dark) {{
         .stApp {{
             background-color: #1a1a1a;
@@ -618,14 +618,14 @@ st.markdown(
             background-color: #2a2a2a;
             color: #e0e0e0;
         }}
-        .css-1d391kg {{ /* Title */
+        .css-1d391kg {{
             color: #ff6b6b !important;
         }}
         .tagline {{
             color: #b0b0b0;
         }}
         h3 {{
-            color: #ff8787 !important;
+            color: #6681ff !important;
         }}
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea,
@@ -645,7 +645,7 @@ st.markdown(
         .stRadio > label > span,
         .stFileUploader label,
         .stExpander [data-testid="stExpanderHeader"] {{
-            color: #ff8787 !important; /* Adjusted for dark mode */
+            color: #6681ff !important;
         }}
         .stFileUploader > div {{
             background-color: #222222;
@@ -663,18 +663,16 @@ st.markdown(
         button[kind="secondary"][data-testid="reset-button"],
         button[kind="secondary"][data-testid="reset-customizations-button"],
         button[kind="secondary"][data-testid="download-button"] {{
-            color: #ff8787 !important;
+            color: #6681ff !important;
             border-color: #4a4a4a !important;
         }}
     }}
-
-    /* Mobile responsiveness */
     @media (max-width: 768px) {{
         .main .block-container {{
             padding: 1rem;
             max-width: 100%;
         }}
-        .css-1d391kg {{ /* Title */
+        .css-1d391kg {{
             font-size: 24px;
         }}
         .tagline {{
@@ -686,7 +684,7 @@ st.markdown(
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea,
         .stSelectbox > div > div > select {{
-            padding: 0.4rem 0.8rem;
+            padding: 0.4rem 0.8px;
             font-size: 14px;
         }}
         .stTextInput label,
@@ -698,7 +696,7 @@ st.markdown(
             font-size: 12px;
         }}
         .stExpander [data-testid="stExpanderHeader"] {{
-            font-size: 16px; /* Adjusted for mobile */
+            font-size: 18px; /* Adjusted for mobile, increased from 16px */
         }}
         .stButton > button {{
             padding: 6px 16px;
@@ -714,76 +712,94 @@ st.markdown(
         }}
     }}
     </style>
+    <div id="generate-key" style="display:none;">{st.session_state.generate_key}</div>
     """,
     unsafe_allow_html=True
 )
 
 # Title and Tagline
-st.markdown(f"<h1 class='css-1d391kg'>Automated News Photo Card Generator</h1>", unsafe_allow_html=True)
-st.markdown(f"<p class='tagline'>Create engaging news visuals instantly.</p>", unsafe_allow_html=True)
+st.markdown(f"<h1 class='css-1d391kg'>Image Card Generator</h1>", unsafe_allow_html=True)
+st.markdown(f"<p class='description'>Create engaging visuals for your news articles.</p>", unsafe_allow_html=True)
 
 # Main layout with one column
 col1 = st.container()
 
 with col1:
-    # URL input and No URL checkbox
     with st.container():
-        st.subheader("Put Your Link")
+        st.subheader("Input URL")
         col_url, col_checkbox = st.columns([3, 1])
         with col_url:
             url = st.text_input(
                 "Enter the news article URL",
                 placeholder="https://example.com/news-article",
                 key=f"url_input_{st.session_state.generate_key}",
-                disabled=st.session_state.get(f"skip_url_{st.session_state.generate_key}", False)
+                value=st.session_state.url_value,
+                disabled=st.session_state.get(f"skip_url_{st.session_state.generate_key}", False),
+                on_change=lambda: st.session_state.update({"url_value": st.session_state[f"url_input_{st.session_state.generate_key}"]})
             )
         with col_checkbox:
             skip_url = st.checkbox("Skip URL", key=f"skip_url_{st.session_state.generate_key}")
-            if st.button("Reset", key=f"reset_button_{st.session_state.get('generate_key', 0)}", type="secondary", help="Reset the form"):
+            if st.button("Reset", key=f"reset_button_{st.session_state.get('key', '0')}", type="primary"):
                 st.session_state.generate_key += 1
-        if not skip_url and url and not is_valid_url(url):
-            st.error("Please enter a valid URL (e.g., https://example.com).")
-            url = None
+                st.session_state.url_value = ""
+                st.session_state.pasted_image = None
+                st.session_state.pasted_image_bridge = ""
+                st.rerun()
 
-    # Headline
+    if not skip_url and url and not is_valid_url(url):
+        st.error("Please enter a valid URL (e.g., https://example.com).")
+        url = None
+
     with st.container():
         st.subheader("Headline")
-        placeholder_text = "কোন শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
+        placeholder_text = "কোনো শিরোনাম পাওয়া যায়নি" if st.session_state.language == "Bengali" else "No Headline Found"
         custom_headline = st.text_input(
             "Enter a custom headline",
             placeholder=placeholder_text,
             key=f"headline_input_{st.session_state.headline_key}_{st.session_state.generate_key}"
         )
 
-    # Image (moved below Headline)
     with st.container():
-        st.subheader("Image")
+        st.subheader("Upload a Custom Image")
         uploaded_image = st.file_uploader(
             "Upload a custom image",
             type=["png", "jpg", "jpeg"],
             key=f"image_upload_{st.session_state.generate_key}"
         )
-        image_source = uploaded_image if uploaded_image else None
-        if uploaded_image:
-            st.success(f"Custom image '{uploaded_image.name}' uploaded!")
+        st.subheader("Paste Image Address")
+        pasted_image_bridge = st.text_input(
+            "Pasted Image Bridge",
+            key=f"pasted_image_bridge_{st.session_state.generate_key}",
+            value=st.session_state.pasted_image_bridge,
+            label_visibility="hidden"
+        )
+        if pasted_image_bridge and pasted_image_bridge != st.session_state.pasted_image_bridge:
+            if is_valid_url(pasted_image_bridge) and pasted_image_bridge.lower().endswith(('.png', '.jpg', '.jpeg')):
+                st.session_state.pasted_image_bridge = pasted_image_bridge
+                st.session_state.pasted_image = pasted_image_bridge
+                st.markdown(f"Pasted Image URL: `{pasted_image_bridge}`")
+            else:
+                st.error("Invalid image URL. Must end with .png, .jpg, or .jpeg.")
+        image_source = uploaded_image if uploaded_image else st.session_state.pasted_image
+        if st.session_state.pasted_image and not uploaded_image and is_valid_url(st.session_state.pasted_image) and st.session_state.pasted_image.lower().endswith(('.png', '.jpg', '.jpeg')):
+            st.markdown(f"Pasted Image URL: `{st.session_state.pasted_image}`")
 
-    # Override Settings
     with st.expander("Override Settings"):
         override_date = st.checkbox(
-            "Manually set the publication date",
+            "Set Date Manually",
             key=f"override_date_{st.session_state.generate_key}"
         )
         if override_date:
             manual_date = st.date_input(
-                "Select the publication date",
+                "Select Date",
                 value=datetime.date.today(),
-                min_value=datetime.date(1900, 1, 1),
+                min_value=datetime.date(2000, 1, 1),
                 max_value=datetime.date.today(),
                 key=f"date_input_{st.session_state.generate_key}"
             )
 
         override_source = st.checkbox(
-            "Manually set the source",
+            "Set Source Manually",
             key=f"override_source_{st.session_state.generate_key}"
         )
         if override_source:
@@ -791,25 +807,24 @@ with col1:
                 "প্রথম আলো", "কালের কণ্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
                 "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পূর্বকোণ", "দৈনিক আজাদী",
                 "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকণ্ঠ",
-                "ঢাকা পোস্ট", "একাত্তর টিভি", "যমুনা টিভি", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
+                "ঢাকা পোস্ট", "একাত্তর", "যমুনা টিজন", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
             ]
+
             manual_source = st.selectbox(
-                "Select the source",
+                "Select Source",
                 options=source_options,
                 index=0,
                 key=f"source_input_{st.session_state.generate_key}"
             )
 
-    # Additional Customisation
-    with st.expander("Additional Customisation"):
+    with st.expander("Additional Customization"):
         st.session_state.show_logo_box_overlay = st.checkbox(
             "Show Logo Box Overlay",
             value=st.session_state.show_logo_box_overlay,
-            key=f"show_logo_box_overlay_{st.session_state.generate_key}"
+            key=f"show_logo_box_{st.session_state.generate_key}"
         )
 
-        # Custom logo and ad upload sections
-        st.subheader("Logo & Ad")
+        st.subheader("Custom Images")
         custom_logo_upload = st.file_uploader(
             "Upload a custom logo",
             type=["png", "jpg", "jpeg"],
@@ -820,7 +835,6 @@ with col1:
             logo_base64 = f"data:image/png;base64,{base64.b64encode(logo_bytes).decode('utf-8')}"
             st.session_state.custom_logo = logo_base64
             st.session_state.custom_logo_name = custom_logo_upload.name
-            st.success(f"Custom logo '{custom_logo_upload.name}' uploaded!")
 
         custom_ad_upload = st.file_uploader(
             "Upload a custom ad",
@@ -832,7 +846,6 @@ with col1:
             ad_base64 = f"data:image/png;base64,{base64.b64encode(ad_bytes).decode('utf-8')}"
             st.session_state.custom_ad = ad_base64
             st.session_state.custom_ad_name = custom_ad_upload.name
-            st.success(f"Custom ad '{custom_ad_upload.name}' uploaded!")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -851,7 +864,7 @@ with col1:
         col3, col4 = st.columns(2)
         with col3:
             st.session_state.text_color = st.color_picker(
-                "Primary Text Color",
+                "Text Color",
                 st.session_state.text_color,
                 key=f"text_color_{st.session_state.generate_key}"
             )
@@ -862,7 +875,7 @@ with col1:
                 key=f"secondary_text_color_{st.session_state.generate_key}"
             )
 
-        st.subheader("Language Selection")
+        st.subheader("Language")
         previous_language = st.session_state.language
         language_options = ["Bengali", "English"]
         st.session_state.language = st.radio(
@@ -874,7 +887,7 @@ with col1:
         if st.session_state.language != previous_language:
             st.session_state.headline_key += 1
 
-        if st.button("Reset Customizations", key="reset_customizations_button", type="secondary"):
+        if st.button("Reset Customization", key="reset_customizations", type="primary"):
             st.session_state.generate_key += 1
             st.session_state.primary_color = PRIMARY_ACCENT_COLOR
             st.session_state.secondary_color = "#fbd302"
@@ -887,11 +900,15 @@ with col1:
             st.session_state.show_logo_box_overlay = True
             st.session_state.language = "Bengali"
             st.session_state.headline_key += 1
+            st.session_state.pasted_image = None
+            st.session_state.pasted_image_bridge = ""
+            st.session_state.url_value = ""
+            st.session_state.card_counter = 1
+            st.rerun()
 
-    # Generate Button
-    if st.button("Generate Photo Card", type="primary"):
+    if st.button("Generate Card", type="primary"):
         if not skip_url and not url:
-            st.warning("Please enter a valid URL or check 'Skip URL'.")
+            st.warning("Please provide a valid URL or check 'Skip URL'.")
         else:
             progress_bar = st.progress(0)
             for i in range(100):
@@ -918,11 +935,37 @@ with col1:
                 if not image_source and image_url:
                     image_source = image_url
 
-                output_path = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
-                st.image(output_path, caption=f"Generated Photo Card ({st.session_state.language})")
-                with open(output_path, "rb") as file:
-                    st.download_button("Download Photo Card", file, file_name="photo_card.png", type="secondary", key="download_button")
+                image_placeholder = st.empty()
+
+                img_base64, buf = create_photo_card(final_headline, image_source, pub_date, main_domain, language=st.session_state.language)
+
+                image_placeholder.markdown(
+                    f"""
+                    <div>
+                        <img src="data:image/png;base64,{img_base64}" class="base64-image" alt="Generated Card">
+                        <p class="image-caption">Generated Card ({st.session_state.language})</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.download_button(
+                    "Download Card",
+                    buf,
+                    file_name=f"photo-card-{st.session_state.card_counter}.png",
+                    mime="image/png",
+                    type="primary",
+                    key="download_button"
+                )
+
+                st.session_state.card_counter += 1
                 st.session_state.generate_key += 1
+                st.session_state.url_value = ""
+                st.session_state.pasted_image = None
+                st.session_state.pasted_image_bridge = ""
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                st.error(f"Error generating card: {str(e)}")
                 st.session_state.generate_key += 1
+                st.session_state.url_value = ""
+                st.session_state.pasted_image = None
+                st.session_state.pasted_image_bridge = ""
