@@ -42,6 +42,35 @@ TEXT_DARK = "#3c3c3c"
 BACKGROUND_LIGHT = "#F8F9FA"
 CONTENT_BG = "#FFFFFF"
 
+# Mapping of domains to source names in Bengali
+SOURCE_DOMAIN_MAPPING = {
+    "bdnews24.com": "বিডিনিউজ২৪",
+    "bangla.bdnews24.com": "বিডিনিউজ২৪",
+    "banglatribune.com": "বাংলা ট্রিবিউন",
+    "prothomalo.com": "প্রথম আলো",
+    "kalerkantho.com": "কালের কণ্ঠ",
+    "ittefaq.com.bd": "ইত্তেফাক",
+    "samakal.com": "সমকাল",
+    "dailyjanakantha.com": "জনকণ্ঠ",
+    "jugantor.com": "যুগান্তর",
+    "mzamin.com": "মানবজমিন",
+    "thedailystar.net": "দি ডেইলি স্টার",
+    "bangla.thedailystar.net": "দি ডেইলি স্টার",
+    "tbsnews.net": "দি বিজনেস স্ট্যান্ডার্ড",
+    "bbc.com": "বিবিসি বাংলা",
+    "kalbela.com": "কালবেলা",
+    "ajkerpatrika.com": "আজকের পত্রিকা",
+    "dhakapost.com": "ঢাকা পোস্ট",
+    "dainikpurbokone.net": "দৈনিক পূর্বকোণ",
+    "dainikazadi.net": "দৈনিক আজাদী",
+    "ctgpratidin.com": "চট্টগ্রাম প্রতিদিন",
+    "ekattor.tv": "একাত্তর টিভি",
+    "jamuna.tv": "যমুনা টিভি",
+    "dbcnews.tv": "ডিবিসি নিউজ",
+    "rtvonline.com": "আর টিভি",
+    "ntvbd.com": "এন টিভি",
+}
+
 # Functions
 def is_valid_url(url):
     regex = re.compile(
@@ -59,12 +88,20 @@ def extract_main_domain(url):
         domain = parsed_url.netloc
         if domain.startswith("www."):
             domain = domain[4:]
-        parts = domain.split(".")
-        if len(parts) >= 3 and parts[-2] in ["co", "org", "gov", "edu"]:
-            return ".".join(parts[-3:])
-        return ".".join(parts[-2:])
-    except Exception:
+        # Debug: Log the extracted domain
+        # print(f"Extracted domain: {domain}")
+        return domain
+    except Exception as e:
+        # Debug: Log the exception
+        # print(f"Error extracting domain from {url}: {str(e)}")
         return "Unknown"
+
+def map_domain_to_source(domain):
+    # Check if the domain matches any in the mapping
+    mapped_source = SOURCE_DOMAIN_MAPPING.get(domain, domain)
+    # Debug: Log the mapping result
+    # print(f"Mapping domain '{domain}' to source '{mapped_source}'")
+    return mapped_source
 
 def extract_news_data(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
@@ -90,7 +127,8 @@ def extract_news_data(url):
     source_tag = soup.find('meta', {'property': 'og:site_name'})
     source = source_tag['content'] if source_tag else 'Source not found'
 
-    main_domain = extract_main_domain(url)
+    domain = extract_main_domain(url)
+    main_domain = map_domain_to_source(domain)
     return pub_date, headline, image_url, source, main_domain
 
 def url_to_base64(image_url, max_retries=2):
@@ -812,10 +850,29 @@ with col1:
         )
         if override_source:
             source_options = [
-                "প্রথম আলো", "কালের কণ্ঠ", "যুগান্তর", "বিডিনিউজ২৪", "দি ডেইলি স্টার",
-                "দি বিজনেস স্ট্যান্ডার্ড", "বাংলা ট্রিবিউন", "দৈনিক পূর্বকোণ", "দৈনিক আজাদী",
-                "চট্টগ্রাম প্রতিদিন", "কালবেলা", "আজকের পত্রিকা", "সমকাল", "জনকণ্ঠ",
-                "ঢাকা পোস্ট", "একাত্তর", "যমুনা টিজন", "বিবিসি বাংলা", "RTV", "NTV", "ইত্তেফাক"
+                "বিডিনিউজ২৪",
+                "বাংলা ট্রিবিউন",
+                "প্রথম আলো",
+                "কালের কণ্ঠ",
+                "ইত্তেফাক",
+                "সমকাল",
+                "জনকণ্ঠ",
+                "যুগান্তর",
+                "মানবজমিন",
+                "দি ডেইলি স্টার",
+                "দি বিজনেস স্ট্যান্ডার্ড",
+                "বিবিসি বাংলা",
+                "কালবেলা",
+                "আজকের পত্রিকা",
+                "ঢাকা পোস্ট",
+                "দৈনিক পূর্বকোণ",
+                "দৈনিক আজাদী",
+                "চট্টগ্রাম প্রতিদিন",
+                "একাত্তর টিভি",
+                "যমুনা টিভি",
+                "ডিবিসি নিউজ",
+                "আর টিভি",
+                "এন টিভি"
             ]
 
             manual_source = st.selectbox(
