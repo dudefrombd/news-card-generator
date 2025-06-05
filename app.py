@@ -494,7 +494,7 @@ st.markdown(
         border-radius: 6px;
         padding: 0.5rem 1rem;
         color: {TEXT_DARK};
-        margin-top: 0.1rem !important; /* Reduced space between input and label */
+        margin-top: 0.1rem !important;
     }}
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus,
@@ -505,9 +505,9 @@ st.markdown(
     .stTextInput label,
     .stTextArea label,
     .stSelectbox label {{
-        font-size: 21px !important; /* Increased by 50% from 14px to 21px */
+        font-size: 21px !important;
         color: #334ec2 !important;
-        margin-bottom: 0.1rem !important; /* Reduced space below label */
+        margin-bottom: 0.1rem !important;
     }}
     .stTextInput > div > div > input::placeholder,
     .stTextArea > div > div > textarea::placeholder {{
@@ -519,10 +519,10 @@ st.markdown(
         background-color: {BACKGROUND_LIGHT};
         padding: 1rem;
         text-align: center;
-        margin-top: 0.1rem !important; /* Reduced space between uploader and label */
+        margin-top: 0.1rem !important;
     }}
     .stFileUploader label {{
-        font-size: 21px !important; /* Increased by 50% from 14px to 21px */
+        font-size: 21px !important;
         color: #334ec2 !important;
     }}
     .stFileUploader [data-testid="stFileUploadDropzone"] {{
@@ -612,7 +612,6 @@ st.markdown(
         color: {TEXT_DARK};
         margin-top: 0.5rem;
     }}
-    /* Reduce space between file uploader and text input */
     div[data-testid="stFileUploader"] + div[data-testid="stTextInput"] {{
         margin-top: 0.25rem !important;
     }}
@@ -692,7 +691,7 @@ st.markdown(
         .stSelectbox > div > div > select {{
             padding: 0.4rem 0.8px;
             font-size: 14px;
-            margin-top: 0.05rem !important; /* Adjusted for mobile */
+            margin-top: 0.05rem !important;
         }}
         .stTextInput label,
         .stTextArea label,
@@ -700,7 +699,7 @@ st.markdown(
         .stFileUploader label,
         .stCheckbox > label > span,
         .stRadio > label > span {{
-            font-size: 18px !important; /* Increased by 50% from 12px to 18px for mobile */
+            font-size: 18px !important;
         }}
         .stExpander [data-testid="stExpanderHeader"] {{
             font-size: 18px;
@@ -721,7 +720,7 @@ st.markdown(
             margin-top: 0.15rem !important;
         }}
         .stFileUploader > div {{
-            margin-top: 0.05rem !important; /* Adjusted for mobile */
+            margin-top: 0.05rem !important;
         }}
     }}
     </style>
@@ -961,7 +960,7 @@ with col1:
                 st.download_button(
                     "Download Card",
                     buf,
-                    file_name=f"photo-card-{st.session_state.card_counter}.png",
+                    file_name="photo-card.png",
                     mime="image/png",
                     type="primary",
                     key="download_button"
